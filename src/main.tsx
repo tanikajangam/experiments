@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './fonts.css'
 import './index.css'
 import App, { isDemoLink } from './App.tsx'
+import { Overlays } from './screens/Overlays.tsx'
 import { idbCache } from './lib/idbCache.ts'
 import { saveSubscription } from './lib/push.ts'
 import { supabaseBackend } from './lib/supabaseBackend.ts'
@@ -20,5 +21,6 @@ if (!isDemoLink()) {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
+    <Overlays />
   </StrictMode>,
 )

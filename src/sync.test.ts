@@ -238,3 +238,70 @@ describe('sync: demo mode', () => {
     expect(cache.snap()?.experiments ?? []).toEqual([])
   })
 })
+
+describe('sync: telling the user (step 8)', () => {
+  const setOnline = (on: boolean) => Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => on })
+  const loadedWith = () => ({ experiments: [structuredClone(serverExperiment)], profile: { timezone: 'UTC', reminder_on: true, reminder_time: '20:00:00' } })
+
+  it('airplane mode: two logs wait on the phone (counted, no error toast), then reach the server', async () => {
+    const second = { ...structuredClone(serverExperiment), id: '22222222-2222-4222-8222-222222222222', title: 'Gym session' }
+    const { fake, backend } = fakeBackend({ loaded: { ...loadedWith(), experiments: [structuredClone(serverExperiment), second] } })
+    await store.start(backend, fakeCache())
+    setOnline(false)
+    fake.online = false
+    store.writeLog(serverExperiment.id, true, '', TODAY)
+    store.writeLog(second.id, true, '', TODAY)
+    await settle()
+    expect(store.getState()).toMatchObject({ pending: 2, offline: true, problem: null })
+
+    setOnline(true)
+    fake.online = true
+    await store.sync()
+    expect(fake.sent.filter((op) => op.kind === 'log')).toHaveLength(2)
+    expect(store.getState()).toMatchObject({ pending: 0, offline: false })
+  })
+
+  it('a write that fails while online shows the toast; Retry sends it and clears it', async () => {
+    const { fake, backend } = fakeBackend({ loaded: loadedWith() })
+    await store.start(backend, fakeCache())
+    fake.resultFor = () => 'retry' // e.g. the server answered 503
+    store.writeLog(serverExperiment.id, true, '', TODAY)
+    await settle()
+    expect(store.getState().problem).toMatchObject({ kind: 'failed' })
+    expect(store.getState().pending).toBe(1)
+    fake.resultFor = () => 'ok'
+    await store.retry()
+    expect(store.getState()).toMatchObject({ problem: null, pending: 0 })
+  })
+
+  it('keeps retrying on its own while something is waiting, without a new tap', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
+    try {
+      const { fake, backend } = fakeBackend({ loaded: loadedWith() })
+      await store.start(backend, fakeCache())
+      fake.resultFor = () => 'retry'
+      store.writeLog(serverExperiment.id, true, '', TODAY)
+      await vi.advanceTimersByTimeAsync(0)
+      fake.resultFor = () => 'ok'
+      await vi.advanceTimersByTimeAsync(5_000)
+      expect(fake.sent.filter((op) => op.kind === 'log')).toHaveLength(1)
+      expect(store.getState().pending).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('a refused write shows the toast and the screen goes back to what the server has', async () => {
+    const { fake, backend } = fakeBackend({ loaded: loadedWith() })
+    await store.start(backend, fakeCache())
+    const loadsBefore = fake.loads
+    fake.resultFor = (op) => (op.kind === 'log' ? 'drop' : 'ok')
+    store.writeLog(serverExperiment.id, false, 'x', TODAY)
+    await settle()
+    await settle()
+    await store.sync()
+    expect(store.getState().problem).toMatchObject({ kind: 'rejected' })
+    expect(fake.loads).toBeGreaterThan(loadsBefore)
+    expect(store.getState().experiments[0].logs[TODAY]).toBeUndefined()
+  })
+})

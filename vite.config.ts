@@ -7,8 +7,8 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      // Step 8 switches this to 'prompt' with an update banner.
-      registerType: 'autoUpdate',
+      // A new version waits until the user taps Update (src/screens/Overlays.tsx).
+      registerType: 'prompt',
       includeAssets: ['apple-touch-icon.png', 'favicon.png'],
       manifest: {
         name: 'Experiments',

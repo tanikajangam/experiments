@@ -20,7 +20,7 @@ export function fakeCache(initial: Snapshot | null = null) {
 export function fakeBackend(opts: { session?: SessionState; loaded?: Loaded } = {}) {
   const fake = {
     session: (opts.session ?? { kind: 'user', userId: 'u1' }) as SessionState,
-    loaded: opts.loaded ?? ({ experiments: [], profile: { timezone: 'UTC', reminder_on: true, reminder_time: '20:00:00' } } as Loaded),
+    loaded: structuredClone(opts.loaded) ?? ({ experiments: [], profile: { timezone: 'UTC', reminder_on: true, reminder_time: '20:00:00' } } as Loaded),
     /** Whether the network is up. When down, sends return 'retry' and loads return null. */
     online: true,
     /** The token couldn't be refreshed even though data requests would get through. */

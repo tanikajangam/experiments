@@ -7,7 +7,7 @@ import { segmentColours } from './Home.tsx'
 const card: CSSProperties = { display: 'flex', flexDirection: 'column', padding: 16, background: C.card, borderRadius: 16 }
 const cardHead: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }
 
-export function Analysis({ a, onBack, onLog, onDecide }: { a: A; onBack: () => void; onLog: () => void; onDecide: () => void }) {
+export function Analysis({ a, onBack, onLog, onDecide, onExport }: { a: A; onBack: () => void; onLog: () => void; onDecide: () => void; onExport: () => void }) {
   const n = a.resolved.length
   return (
     <div style={screenRoot}>
@@ -145,6 +145,15 @@ export function Analysis({ a, onBack, onLog, onDecide }: { a: A; onBack: () => v
             <span style={{ fontSize: 13, lineHeight: 1.4 }}>{a.decisionText}</span>
           </div>
         )}
+
+        {/* Not in the prototype (step 8, see CLAUDE.md): a copy of everything, as a file to keep. */}
+        <button
+          type="button"
+          onClick={onExport}
+          style={{ alignSelf: 'center', minHeight: 44, padding: '0 20px', borderRadius: 999, border: `1.5px solid ${C.rule}`, background: 'transparent', color: C.ink2, fontSize: 14, cursor: 'pointer' }}
+        >
+          Export all my data
+        </button>
       </div>
 
       {a.dueNow && (

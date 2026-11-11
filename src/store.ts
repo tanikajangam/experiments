@@ -22,6 +22,7 @@ import {
 } from './lib/consistency.ts'
 import type { DecideAnswers } from './lib/decision.ts'
 import type { AudioFormat, VoiceForm } from './lib/voice.ts'
+import { buildExport } from './lib/exportData.ts'
 import { DEFAULT_REMINDER, decisionToRow, experimentFromRow, experimentToRow, logToRow, reminderFromProfile } from './lib/rows.ts'
 
 export type { DecideAnswers } from './lib/decision.ts'
@@ -54,6 +55,15 @@ export interface AppState {
   firstRun: boolean
   /** The last attempt to reach the server failed. */
   offline: boolean
+  /** Changes made on this phone that the server doesn't have yet. */
+  pending: number
+  /** A write that failed while online (retry) or that the server refused (rejected), for the toast. */
+  problem: SyncProblem | null
+}
+
+export interface SyncProblem {
+  kind: 'failed' | 'rejected'
+  message: string
 }
 
 export interface NewExperiment {
@@ -73,7 +83,7 @@ export function currentDay(now: Date = new Date()): DateKey {
   return localDateKey(now, deviceTimeZone())
 }
 
-const INITIAL: AppState = { status: 'loading', experiments: [], reminder: DEFAULT_REMINDER, firstRun: false, offline: false }
+const INITIAL: AppState = { status: 'loading', experiments: [], reminder: DEFAULT_REMINDER, firstRun: false, offline: false, pending: 0, problem: null }
 
 let state: AppState = INITIAL
 const listeners = new Set<() => void>()
@@ -92,6 +102,10 @@ let inFlight: Op | null = null
 let syncing: Promise<void> | null = null
 let listening = false
 let retryTimer: ReturnType<typeof setTimeout> | null = null
+let flushTimer: ReturnType<typeof setTimeout> | null = null
+let retryAttempts = 0
+/** A write was refused, so the screen may show something the server doesn't have: reload after sending. */
+let reloadAfterFlush = false
 const RETRY_MS = 8000
 const PENDING_SIGN_IN = 'experiments.signin'
 
@@ -103,6 +117,31 @@ export interface PendingSignIn {
 function set(patch: Partial<AppState>) {
   state = { ...state, ...patch }
   listeners.forEach((l) => l())
+}
+
+/** Change the queue and keep the pending count on screen in step. */
+function setQueue(q: Op[]) {
+  queue = q
+  if (state.pending !== q.length) set({ pending: q.length })
+}
+
+/** Retry sending with backoff while anything is waiting: 5 s, 10 s, 20 s… up to a minute. */
+function scheduleRetry() {
+  if (flushTimer || mode !== 'live') return
+  const delay = Math.min(60_000, 5_000 * 2 ** retryAttempts)
+  retryAttempts++
+  flushTimer = setTimeout(() => {
+    flushTimer = null
+    if (queue.length > 0) void sync()
+  }, delay)
+}
+
+function clearTimers() {
+  if (flushTimer) clearTimeout(flushTimer)
+  if (retryTimer) clearTimeout(retryTimer)
+  flushTimer = retryTimer = null
+  retryAttempts = 0
+  reloadAfterFlush = false
 }
 
 function find(id: string): StoredExperiment | undefined {
@@ -119,7 +158,7 @@ function commit(patch: Partial<AppState>, ops: (uid: string) => Op[]) {
   version++
   set(patch)
   if (mode !== 'live' || !userId) return
-  for (const op of ops(userId)) queue = enqueue(queue, op)
+  for (const op of ops(userId)) setQueue(enqueue(queue, op))
   persist()
   void flush()
 }
@@ -158,6 +197,10 @@ function flush(): Promise<void> {
     } while (flushAgain)
   })().finally(() => {
     flushing = null
+    if (reloadAfterFlush && queue.length === 0) {
+      reloadAfterFlush = false
+      setTimeout(() => void sync(), 0)
+    }
   })
   return flushing
 }
@@ -167,7 +210,14 @@ async function flushOnce() {
   if (!backend || !uid || queue.length === 0) return
   // Never send with a stale token: an anonymous write would be rejected and dropped.
   const s = await backend.session()
-  if (s.kind !== 'user' || s.userId !== uid) return
+  if (s.kind !== 'user' || s.userId !== uid) {
+    // Couldn't confirm the session (usually offline): keep the writes and try again later.
+    if (s.kind === 'unknown') {
+      set({ offline: true })
+      scheduleRetry()
+    }
+    return
+  }
   while (queue.length > 0 && userId === uid) {
     const op = queue[0]
     inFlight = op
@@ -176,26 +226,40 @@ async function flushOnce() {
     })
     if (userId !== uid) return
     if (result === 'retry') {
-      set({ offline: true })
+      const online = typeof navigator === 'undefined' || navigator.onLine !== false
+      set({
+        offline: true,
+        // Offline is shown by the offline indicator; a failure while online gets the toast.
+        ...(online ? { problem: { kind: 'failed' as const, message: 'Couldn’t save to the server. Your change is kept on this phone.' } } : {}),
+      })
+      scheduleRetry()
       return
     }
-    if (result === 'drop') console.error('The server rejected a change; it was not saved.', op)
-    queue = queue.filter((o) => o !== op)
+    if (result === 'drop') {
+      console.error('The server rejected a change; it was not saved.', op.kind)
+      reloadAfterFlush = true
+      set({ problem: { kind: 'rejected', message: 'The server refused a change, so it wasn’t saved. Showing what the server has.' } })
+    } else {
+      retryAttempts = 0
+      if (state.offline) set({ offline: false })
+    }
+    setQueue(queue.filter((o) => o !== op))
     persist()
   }
+  if (queue.length === 0 && state.problem?.kind === 'failed') set({ problem: null })
 }
 
 /** Switch to a signed-in account that has no offline copy here: wait for its first load. */
 function adopt(id: string) {
   userId = id
-  queue = []
+  setQueue([])
   version++
   set({ status: 'loading', experiments: [], reminder: DEFAULT_REMINDER, firstRun: false })
 }
 
 async function signedOut() {
   userId = null
-  queue = []
+  setQueue([])
   version++
   set({ status: 'signedOut', experiments: [], reminder: DEFAULT_REMINDER, firstRun: false, offline: false })
   await cache?.clear()
@@ -247,7 +311,7 @@ function sync(): Promise<void> {
     // The profile's timezone sets when the server's day ends (for reminders). Keep it on this device's.
     const timezone = deviceTimeZone()
     if (!loaded.profile || loaded.profile.timezone !== timezone) {
-      queue = [...queue, { kind: 'profile', row: { id: uid, timezone } }]
+      setQueue([...queue, { kind: 'profile', row: { id: uid, timezone } }])
       persist()
       await flush()
     }
@@ -268,8 +332,9 @@ export const store = {
   /** Demo mode: replace the state in memory only (tests and the ?screen= start links). */
   reset(next: Partial<AppState>) {
     mode = 'demo'
+    clearTimers()
     userId = null
-    queue = []
+    setQueue([])
     version++
     set({ ...INITIAL, status: 'ready', ...next })
   },
@@ -286,16 +351,18 @@ export const store = {
    */
   async start(b: Backend, c: Cache) {
     mode = 'live'
+    clearTimers()
     backend = b
     cache = c
     userId = null
-    queue = []
+    setQueue([])
     version++
     set(INITIAL)
     b.onSignedOut(() => void signedOut())
     if (!listening && typeof window !== 'undefined') {
       listening = true
       window.addEventListener('online', () => void sync())
+      window.addEventListener('offline', () => set({ offline: true }))
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') void sync()
       })
@@ -303,7 +370,7 @@ export const store = {
     const snap = await c.read()
     if (snap) {
       userId = snap.userId
-      queue = snap.queue
+      setQueue(snap.queue)
       set({ status: 'ready', experiments: snap.experiments, reminder: snap.reminder })
     }
     const s = await b.session()
@@ -314,6 +381,22 @@ export const store = {
 
   /** Try again now: on reconnect, and when the app comes back to the foreground. */
   sync,
+
+  /** The toast's Retry: try sending and loading again straight away. */
+  retry() {
+    retryAttempts = 0
+    set({ problem: null })
+    return sync()
+  },
+
+  /** All experiments, logs and decisions on this phone (including changes not yet sent), as JSON. */
+  exportJson(now: Date = new Date()): string {
+    return JSON.stringify(buildExport(state, now), null, 2)
+  },
+
+  dismissProblem() {
+    set({ problem: null })
+  },
 
   /**
    * The email and step of a sign-in in progress. The user leaves for Mail to read the code and iOS

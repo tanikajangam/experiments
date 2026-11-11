@@ -7,6 +7,8 @@ import { Analysis } from './screens/Analysis.tsx'
 import { Celebrate } from './screens/Celebrate.tsx'
 import { Create } from './screens/Create.tsx'
 import { BLANK_ANSWERS, summarize } from './lib/decision.ts'
+import { exportFileName } from './lib/exportData.ts'
+import { shareFile } from './lib/share.ts'
 import { Decide } from './screens/Decide.tsx'
 import { Home } from './screens/Home.tsx'
 import { Log } from './screens/Log.tsx'
@@ -208,6 +210,7 @@ export default function App() {
             onBack={goHome}
             onLog={() => openLog(sel!.ex.id, 'analysis')}
             onDecide={() => openDecide(sel!.ex.id)}
+            onExport={() => shareFile(exportFileName(today), store.exportJson())}
           />
         </div>
       )
