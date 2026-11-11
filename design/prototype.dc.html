@@ -1,0 +1,980 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Experiments prototype, version 2</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..600;1,9..144,400&amp;family=Poppins:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:Poppins,'Segoe UI',Helvetica,Arial,sans-serif;color:#2B2A26}
+a{color:#2E5A2B}a:hover{color:#1E3F1D}
+button,input,textarea{font-family:inherit}
+input::placeholder,textarea::placeholder{color:#6B675E}
+input:focus,textarea:focus,button:focus-visible{outline:2px solid #2F7A4B;outline-offset:2px}
+button{transition:transform 140ms cubic-bezier(0.2,0.8,0.2,1),background-color 180ms ease,color 180ms ease,border-color 180ms ease}
+button:active:not(:disabled){transform:scale(0.96)}
+@keyframes screenIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes riseIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes growX{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes growY{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes pop{0%{transform:scale(0);opacity:0}65%{transform:scale(1.25);opacity:1}100%{transform:scale(1);opacity:1}}
+@keyframes bigPop{0%{transform:scale(0.5);opacity:0}60%{transform:scale(1.08);opacity:1}100%{transform:scale(1);opacity:1}}
+@keyframes drawCheck{from{stroke-dashoffset:24}to{stroke-dashoffset:0}}
+@keyframes badgeIn{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.03)}}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+@keyframes dialGrow{from{clip-path:circle(28px at 300px 300px)}to{clip-path:circle(250px at 300px 300px)}}
+@keyframes dialShrink{from{clip-path:circle(250px at 300px 300px)}to{clip-path:circle(28px at 300px 300px)}}
+@keyframes dialFade{from{opacity:0}to{opacity:1}}
+@keyframes dialFadeOut{from{opacity:1}to{opacity:0}}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #DAD4C8; overflow-y: auto; overflow-x: hidden; position: relative; color: #2B2A26">
+
+<sc-if value="{{isWelcome}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; min-height: 844px; box-sizing: border-box; padding: 56px 24px 24px; animation: screenIn 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both">
+  <span style="font-size: 18px; font-weight: 500; color: #4B5B4F">Tanki’s <span style="color: #4E6B3A">Experiments</span></span>
+  <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 28px">
+    <div style="display: flex; align-items: baseline; gap: 10px; animation: riseIn 500ms cubic-bezier(0.2, 0.8, 0.2, 1) 120ms both">
+      <span style="font-size: 136px; line-height: 0.9; font-weight: 500; letter-spacing: -4px; color: #2F7A4B; font-family: Fraunces, Georgia, 'Times New Roman', serif; font-optical-sizing: auto">65</span>
+      <span style="font-size: 15px; font-weight: 500; letter-spacing: 1.2px; text-transform: uppercase; color: #2E5A2B">days</span>
+    </div>
+    <h1 style="margin: 0; font-size: 30px; font-weight: 500; line-height: 1.2; text-wrap: balance; animation: riseIn 500ms cubic-bezier(0.2, 0.8, 0.2, 1) 220ms both">Try a habit before you commit to it.</h1>
+    <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; animation: riseIn 500ms cubic-bezier(0.2, 0.8, 0.2, 1) 320ms both">
+      <li style="display: flex; gap: 14px; align-items: baseline">
+        <span style="font-size: 22px; color: #96371C; min-width: 18px; font-family: Fraunces, Georgia, 'Times New Roman', serif; font-optical-sizing: auto">1</span>
+        <span style="font-size: 16px; line-height: 1.4">Pick one thing to try.</span>
+      </li>
+      <li style="display: flex; gap: 14px; align-items: baseline">
+        <span style="font-size: 22px; color: #96371C; min-width: 18px; font-family: Fraunces, Georgia, 'Times New Roman', serif; font-optical-sizing: auto">2</span>
+        <span style="font-size: 16px; line-height: 1.4; text-wrap: pretty">Log it on the days you choose. One tap.</span>
+      </li>
+      <li style="display: flex; gap: 14px; align-items: baseline">
+        <span style="font-size: 22px; color: #96371C; min-width: 18px; font-family: Fraunces, Georgia, 'Times New Roman', serif; font-optical-sizing: auto">3</span>
+        <span style="font-size: 16px; line-height: 1.4">On day 65, decide: keep it or drop it.</span>
+      </li>
+    </ol>
+  </div>
+  <button onClick="{{goFirst}}" style="width: 100%; min-height: 56px; padding: 0 20px; border-radius: 999px; border: 0; background: #2F7A4B; color: #FFFFFF; font-size: 18px; font-weight: 500; cursor: pointer">Start my first experiment</button>
+</div>
+</sc-if>
+
+<sc-if value="{{isSetup}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; min-height: 844px; box-sizing: border-box; padding: 56px 24px 24px; gap: 12px; animation: screenIn 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both">
+  <div style="flex: 1; display: flex; flex-direction: column; gap: 20px; padding-top: 48px">
+    <span style="font-size: 12px; font-weight: 500; letter-spacing: 1.2px; text-transform: uppercase; color: #96371C">Day 1/65 · {{sel.title}}</span>
+    <h1 style="margin: 0; font-size: 30px; font-weight: 500; line-height: 1.2; text-wrap: balance">When should I nudge you to log?</h1>
+    <p style="margin: 0; font-size: 15px; line-height: 1.45; color: #5D5A52">One reminder a day, and only if something is left to log.</p>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding-top: 8px">
+      <sc-for list="{{setupChips}}" as="c" hint-placeholder-count="4">
+        <button onClick="{{c.pick}}" aria-pressed="{{c.pressed}}" style="min-height: 84px; padding: 12px 14px; border-radius: 16px; border: 1.5px solid {{c.bd}}; background: {{c.bg}}; color: {{c.fg}}; cursor: pointer; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 4px; text-align: left">
+          <span style="font-size: 13px; font-weight: 500">{{c.label}}</span>
+          <span style="font-size: 22px; line-height: 1.1; font-family: Fraunces, Georgia, 'Times New Roman', serif; font-optical-sizing: auto">{{c.time}}</span>
+        </button>
+      </sc-for>
+    </div>
+  </div>
+  <span style="font-size: 12px; color: #5D5A52; text-align: center">Change it any time from the bell on Home.</span>
+  <button onClick="{{finishSetup}}" style="width: 100%; min-height: 56px; padding: 0 20px; border-radius: 999px; border: 0; background: #2F7A4B; color: #FFFFFF; font-size: 18px; font-weight: 500; cursor: pointer">See my experiment</button>
+</div>
+</sc-if>
+
+<sc-if value="{{isHome}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-direction: column; min-height: 844px; box-sizing: border-box; position: relative; animation: screenIn 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both">
+  <div style="display: flex; flex-direction: column; gap: 22px; padding: 52px 24px 24px; flex: 1; position: relative">
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <span style="font-size: 12px; font-weight: 500; letter-spacing: 1.2px; text-transform: uppercase; color: #96371C">{{todayLong}}</span>
+      <h1 style="margin: 0; font-size: 34px; font-weight: 500; line-height: 1.2; color: #4B5B4F">Tanki’s <span style="color: #4E6B3A">Experiments</span></h1>
+    </div>
+
+    <sc-if value="{{hasReady}}" hint-placeholder-val="{{false}}">
+      <section style="display: flex; flex-direction: column; gap: 10px">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 500; color: #96371C">Ready to decide</h2>
+          <span style="font-size: 11px; color: #5D5A52; text-align: right">65 days done</span>
+        </div>
+        <sc-for list="{{ready}}" as="ex" hint-placeholder-count="1">
+          <article style="display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 14px; background: #EDE9E0; border-radius: 16px; border: 1.5px solid #2F7A4B">
+            <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+              <button onClick="{{ex.open}}" style="min-height: 32px; text-align: left; border: 0; background: transparent; padding: 0; font-size: 15px; font-weight: 500; color: #2B2A26; cursor: pointer">{{ex.title}}</button>
+              <span style="font-size: 12px; color: #5D5A52">{{ex.summary}}</span>
+            </div>
+            <button onClick="{{ex.decide}}" style="min-height: 44px; padding: 0 18px; border-radius: 999px; border: 0; background: #2F7A4B; color: #FFFFFF; font-size: 14px; font-weight: 500; cursor: pointer; white-space: nowrap">Decide</button>
+          </article>
+        </sc-for>
+      </section>
+    </sc-if>
+
+    <section style="display: flex; flex-direction: column; gap: 10px">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px">
+        <h2 style="margin: 0; font-size: 15px; font-weight: 500; color: #96371C">Today</h2>
+        <span style="font-size: 11px; color: #5D5A52; text-align: right">{{todayCount}}</span>
+      </div>
+      <sc-if value="{{hasTodayNote}}" hint-placeholder-val="{{false}}">
+        <p style="margin: 0; font-size: 16px; font-style: italic; color: #5D5A52; padding: 2px 0; font-family: Fraunces, Georgia, 'Times New Roman', serif; font-optical-sizing: auto">{{todayNote}}</p>
+      </sc-if>
+      <sc-if value="{{hasToday}}" hint-placeholder-val="{{true}}">
+        <div style="display: flex; flex-direction: column; background: #EDE9E0; border-radius: 16px; overflow: hidden">
+          <sc-for list="{{todayRows}}" as="r" hint-placeholder-count="4">
+            <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px 10px 14px; border-top: {{r.bt}}">
+              <button onClick="{{r.open}}" style="flex: 1; min-width: 0; min-height: 44px; display: flex; flex-direction: column; justify-content: center; gap: 2px; text-align: left; border: 0; background: transparent; padding: 0; cursor: pointer">
+                <span style="font-size: 15px; font-weight: 500; color: #2B2A26; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%">{{r.title}}</span>
+                <span style="font-size: 12px; color: {{r.subColor}}">{{r.sub}}</span>
+              </button>
+              <sc-if value="{{r.pending}}" hint-placeholder-val="{{true}}">
+                <button onClick="{{r.no}}" aria-label="{{r.noLabel}}" style="width: 44px; height: 44px; flex-shrink: 0; border-radius: 999px; border: 1.5px solid #C9C2B3; background: transparent; color: #5D5A52; cursor: pointer; display: inline-flex; align-items: center; justify-content: center">
+                  <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+                </button>
+                <button onClick="{{r.yes}}" aria-label="{{r.yesLabel}}" style="width: 44px; height: 44px; flex-shrink: 0; border-radius: 999px; border: 0; background: #2F7A4B; color: #FFFFFF; cursor: pointer; display: inline-flex; align-items: center; justify-content: center">
+                  <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
+                </button>
+              </sc-if>
+              <sc-if value="{{r.logged}}" hint-placeholder-val="{{false}}">
+                <button onClick="{{r.edit}}" aria-label="{{r.editLabel}}" style="min-height: 44px; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 1px; border: 0; background: transparent; padding: 0 2px; cursor: pointer; animation: badgeIn 280ms ease-out both">
+                  <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 500; color: {{r.statusColor}}">
+                    <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="{{r.icon}}" style="stroke-dasharray: 24; animation: drawCheck 420ms cubic-bezier(0.6, 0, 0.2, 1) 120ms both"></path></svg>
+                    {{r.statusLabel}}
+                  </span>
+                  <span style="font-size: 13px; color: #5D5A52; font-family: Fraunces, Georgia, 'Times New Roman', serif; font-optical-sizing: auto">{{r.delta}}</span>
+                </button>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+    </section>
+
+    <sc-for list="{{tiers}}" as="tier" hint-placeholder-count="4">
+      <section style="display: flex; flex-direction: column; gap: 10px">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 500; color: #96371C">{{tier.name}}</h2>
+          <span style="font-size: 11px; color: #5D5A52; text-align: right">{{tier.rule}}</span>
+        </div>
+        <sc-if value="{{tier.empty}}" hint-placeholder-val="{{false}}">
+          <p style="margin: 0; font-size: 16px; font-style: italic; color: #5D5A52; padding: 2px 0; font-family: Fraunces, Georgia, 'Times New Roman', serif; font-optical-sizing: auto">{{tier.emptyLine}}</p>
+        </sc-if>
+        <sc-if value="{{tier.filled}}" hint-placeholder-val="{{true}}">
+          <div style="display: flex; flex-direction: column; background: #EDE9E0; border-radius: 16px; overflow: hidden; animation: riseIn 420ms cubic-bezier(0.2, 0.8, 0.2, 1) {{tier.delay}} both">
+            <sc-for list="{{tier.items}}" as="ex" hint-placeholder-count="2">
+              <button onClick="{{ex.open}}" aria-label="{{ex.openLabel}}" style="display: flex; flex-direction: column; gap: 8px; width: 100%; box-sizing: border-box; padding: 12px 14px; border: 0; border-top: {{ex.bt}}; background: transparent; text-align: left; cursor: pointer">
+                <span style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px">
+                  <span style="font-size: 15px; font-weight: 500; color: #2B2A26; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{ex.title}}</span>
+                  <span style="font-size: 12px; color: #5D5A52; white-space: nowrap">{{ex.dayLine}}</span>
+                </span>
+                <span style="display: flex; align-items: center; gap: 10px">
+                  <span style="display: flex; gap: 3px; flex: 1">
+                    <sc-for list="{{ex.segments}}" as="seg" hint-placeholder-count="7">
+                      <span style="flex: 1; height: 12px; border-radius: 3px; box-sizing: border-box; background: {{seg.bg}}; border: 1.5px solid {{seg.bd}}; transform-origin: 50% 100%; animation: growY 360ms cubic-bezier(0.2, 0.8, 0.2, 1) {{seg.delay}} both"></span>
+                    </sc-for>
+                  </span>
+                  <span style="font-size: 16px; font-weight: 500; color: #2E5A2B; min-width: 40px; text-align: right; font-family: Fraunces, Georgia, 'Times New Roman', serif; font-optical-sizing: auto">{{ex.pct}}</span>
+                </span>
+              </button>
+            </sc-for>
+          </div>
+        </sc-if>
+      </section>
+    </sc-for>
+
+    <sc-if value="{{hasDecided}}" hint-placeholder-val="{{false}}">
+      <section style="display: flex; flex-direction: column; gap: 10px">
+        <h2 style="margin: 0; font-size: 15px; font-weight: 500; color: #5D5A52">Decided</h2>
+        <sc-for list="{{decided}}" as="ex" hint-placeholder-count="1">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 14px; border-radius: 14px; border: 1.5px solid #C9C2B3">
+            <button onClick="{{ex.open}}" style="min-height: 44px; text-align: left; border: 0; background: transparent; padding: 0; font-size: 14px; color: #2B2A26; cursor: pointer">{{ex.title}}</button>
+            <span style="font-size: 12px; font-weight: 500; color: {{ex.color}}">{{ex.outcome}}</span>
+          </div>
+        </sc-for>
+      </section>
+    </sc-if>
+  </div>
+
+  <div style="position: sticky; bottom: 0; padding: 12px 24px 24px; background: #DAD4C8">
+    <div style="display: flex; align-items: center; gap: 12px; position: relative; z-index: 1">
+      <button onClick="{{goCreate}}" style="flex: 1; min-height: 56px; padding: 0 20px; border-radius: 999px; border: 0; background: #2F7A4B; color: #FFFFFF; font-size: 18px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 10px">
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+        New Experiment
+      </button>
+      <button onClick="{{toggleDial}}" aria-label="{{bellLabel}}" aria-expanded="{{dialOpen}}" style="width: 56px; height: 56px; flex-shrink: 0; border-radius: 999px; border: 0; background: #2F7A4B; color: #FFFFFF; cursor: pointer; display: inline-flex; align-items: center; justify-content: center">
+        <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path><path d="{{bellSlash}}"></path></svg>
+      </button>
+    </div>
+    <sc-if value="{{dialShown}}" hint-placeholder-val="{{false}}">
+      <div style="position: absolute; right: 0; bottom: 0; width: 352px; height: 352px; background: #245A3A; clip-path: circle(250px at 300px 300px); animation: {{dialAnim}}; pointer-events: auto; z-index: 2">
+        <svg viewBox="0 0 352 352" width="352" height="352" role="img" aria-label="Daily reminder time. Drag along the arc: clockwise for later, counterclockwise for earlier." style="position: absolute; left: 0; top: 0; overflow: visible; animation: {{dialFadeAnim}}">
+          <path d="M 74 300 A 226 226 0 0 1 300 74" fill="none" stroke="#F3F0E9" stroke-opacity="0.25" stroke-width="1"></path>
+          <sc-for list="{{dial.ticks}}" as="t" hint-placeholder-count="21">
+            <line x1="{{t.x1}}" y1="{{t.y1}}" x2="{{t.x2}}" y2="{{t.y2}}" stroke="#F3F0E9" stroke-opacity="{{t.opacity}}" stroke-width="{{t.width}}" stroke-linecap="round"></line>
+          </sc-for>
+          <path d="M 74 300 A 226 226 0 0 1 300 74" fill="none" stroke="transparent" stroke-width="64" style="pointer-events: stroke; cursor: grab; touch-action: none" onPointerDown="{{dialDown}}" onPointerMove="{{dialMove}}" onPointerUp="{{dialUp}}" onPointerCancel="{{dialUp}}"></path>
+          <circle cx="{{dial.kx}}" cy="{{dial.ky}}" r="15" fill="#F3F0E9" style="pointer-events: all; cursor: grab; touch-action: none" onPointerDown="{{dialDown}}" onPointerMove="{{dialMove}}" onPointerUp="{{dialUp}}" onPointerCancel="{{dialUp}}"></circle>
+          <circle cx="{{dial.kx}}" cy="{{dial.ky}}" r="5" fill="#245A3A" style="pointer-events: none"></circle>
+        </svg>
+        <div style="position: absolute; right: 24px; bottom: 92px; width: 160px; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; color: #F3F0E9; animation: {{dialFadeAnim}}">
+          <span style="font-size: 10px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; opacity: 0.8">Daily reminder</span>
+          <span style="font-size: 30px; font-weight: 500; line-height: 1.1">{{dial.label}}</span>
+          <button onClick="{{toggleReminder}}" style="min-height: 32px; padding: 0; border: 0; background: transparent; color: #F3F0E9; font-size: 12px; font-weight: 500; text-decoration: underline; cursor: pointer; opacity: 0.85; pointer-events: auto">{{dial.toggleLabel}}</button>
+        </div>
+        <div style="position: absolute; right: 24px; bottom: 24px; height: 56px; display: flex; align-items: center">
+          <button onClick="{{toggleDial}}" aria-label="Close reminder" style="width: 56px; height: 56px; flex-shrink: 0; border-radius: 999px; border: 0; background: #F3F0E9; color: #245A3A; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; pointer-events: auto">
+            <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path><path d="{{bellSlash}}"></path></svg>
+          </button>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{isCreate}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; min-height: 844px; box-sizing: border-box; animation: screenIn 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both">
+  <div style="display: flex; flex-direction: column; gap: 20px; padding: 48px 24px 24px; flex: 1">
+    <div style="display: flex; align-items: center; gap: 8px">
+      <button onClick="{{createBack}}" aria-label="Back" style="width: 44px; height: 44px; border-radius: 999px; border: 0; background: transparent; color: #4B5B4F; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; margin-left: -10px">
+        <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
+      </button>
+      <h1 style="margin: 0; font-size: 26px; font-weight: 500; line-height: 1.2; color: #4B5B4F"><span>{{createTitleA}}</span><span style="color: #4E6B3A; margin-left: 0.28em">{{createTitleB}}</span></h1>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: #EDE9E0; border-radius: 16px">
+      <button aria-label="Describe your experiment by voice" style="width: 48px; height: 48px; flex-shrink: 0; border-radius: 999px; border: 0; background: #2F7A4B; color: #FFFFFF; cursor: pointer; display: inline-flex; align-items: center; justify-content: center">
+        <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M5 10a7 7 0 0 0 14 0M12 17v5M8 22h8"></path></svg>
+      </button>
+      <span style="font-size: 13px; line-height: 1.4; color: #2B2A26">Say it and the form fills itself in.</span>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <label for="exp-title" style="font-size: 14px; font-weight: 500">Experiment title</label>
+      <input id="exp-title" type="text" value="{{form.title}}" onChange="{{setTitle}}" placeholder="Eat 3 meals a day" style="min-height: 46px; box-sizing: border-box; padding: 0 14px; border-radius: 12px; border: 1.5px solid #C9C2B3; background: #EDE9E0; font-size: 15px; color: #2B2A26; width: 100%">
+      <sc-if value="{{showSuggest}}" hint-placeholder-val="{{false}}">
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; padding-top: 2px">
+          <sc-for list="{{suggestChips}}" as="c" hint-placeholder-count="3">
+            <button onClick="{{c.pick}}" style="min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1.5px dashed #A9A295; background: transparent; color: #2B2A26; font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap">{{c.label}}</button>
+          </sc-for>
+        </div>
+      </sc-if>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <span style="font-size: 14px; font-weight: 500">When?</span>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+        <sc-for list="{{typeChips}}" as="c" hint-placeholder-count="3">
+          <button onClick="{{c.pick}}" aria-pressed="{{c.pressed}}" style="min-height: 36px; padding: 0 6px; border-radius: 999px; border: 1.5px solid {{c.bd}}; background: {{c.bg}}; color: {{c.fg}}; font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap">{{c.label}}</button>
+        </sc-for>
+      </div>
+      <div style="display: flex; justify-content: space-between; gap: 6px">
+        <sc-for list="{{dayChips}}" as="d" hint-placeholder-count="7">
+          <button onClick="{{d.pick}}" aria-pressed="{{d.pressed}}" aria-label="{{d.full}}" style="width: 36px; height: 36px; border-radius: 999px; border: 1.5px solid {{d.bd}}; background: {{d.bg}}; color: {{d.fg}}; font-size: 13px; font-weight: 500; cursor: pointer">{{d.label}}</button>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <label for="exp-where" style="font-size: 14px; font-weight: 500">Where?</label>
+      <input id="exp-where" type="text" value="{{form.where}}" onChange="{{setWhere}}" placeholder="At work, home, or with my bf" style="min-height: 46px; box-sizing: border-box; padding: 0 14px; border-radius: 12px; border: 1.5px solid #C9C2B3; background: #EDE9E0; font-size: 15px; color: #2B2A26; width: 100%">
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <label for="exp-why" style="font-size: 14px; font-weight: 500">Why?</label>
+      <textarea id="exp-why" value="{{form.why}}" onChange="{{setWhy}}" rows="2" placeholder="What you hope changes by the end" style="box-sizing: border-box; padding: 12px 14px; border-radius: 12px; border: 1.5px solid #C9C2B3; background: #EDE9E0; font-size: 15px; line-height: 1.4; color: #2B2A26; width: 100%; resize: none; display: block"></textarea>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <span style="font-size: 14px; font-weight: 500">How are you tracking it?</span>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+        <sc-for list="{{trackChips}}" as="c" hint-placeholder-count="3">
+          <button onClick="{{c.pick}}" aria-pressed="{{c.pressed}}" disabled="{{c.disabled}}" style="min-height: 36px; padding: 0 6px; border-radius: 999px; border: 1.5px solid {{c.bd}}; background: {{c.bg}}; color: {{c.fg}}; font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap">{{c.label}}</button>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <div style="position: sticky; bottom: 0; padding: 12px 24px 24px; background: #DAD4C8; display: flex; flex-direction: column; align-items: center; gap: 8px">
+    <span style="font-size: 12px; color: {{limitColor}}; text-align: center">{{limitLine}}</span>
+    <button onClick="{{startExperiment}}" disabled="{{startDisabled}}" style="width: 100%; min-height: 56px; padding: 0 32px; border-radius: 999px; border: 0; background: {{startBg}}; color: {{startFg}}; font-size: 18px; font-weight: 500; cursor: pointer">Start experiment</button>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{isLog}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; min-height: 844px; box-sizing: border-box; position: relative; overflow: hidden; animation: screenIn 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both">
+  <span aria-hidden="true" style="position: absolute; right: 14px; top: 26px; font-size: 140px; font-weight: 400; line-height: 1; letter-spacing: -5px; font-family: Fraunces, Georgia, 'Times New Roman', serif; font-optical-sizing: auto; color: #CBC4B5; pointer-events: none; user-select: none">{{sel.dayNum}}</span>
+  <div style="display: flex; flex-direction: column; gap: 26px; padding: 48px 24px 24px; flex: 1; position: relative">
+    <button onClick="{{logBack}}" aria-label="Back" style="width: 44px; height: 44px; border-radius: 999px; border: 0; background: transparent; color: #4B5B4F; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; margin-left: -10px">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
+    </button>
+
+    <div style="display: flex; flex-direction: column; gap: 6px; padding-top: 38px">
+      <span style="font-size: 12px; font-weight: 500; letter-spacing: 1.2px; text-transform: uppercase; color: #96371C">Day {{sel.dayNum}}/{{sel.length}} · {{sel.phase}}</span>
+      <h1 style="margin: 0; font-size: 32px; font-weight: 500; line-height: 1.15; color: #2B2A26; text-wrap: balance">{{sel.title}}</h1>
+      <span style="font-size: 14px; color: #5D5A52">{{sel.todayLabel}}</span>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <div style="display: flex; gap: 6px; align-items: flex-end">
+        <sc-for list="{{logStrip}}" as="seg" hint-placeholder-count="7">
+          <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px">
+            <span style="width: 100%; height: {{seg.h}}px; border-radius: 6px; box-sizing: border-box; background: {{seg.bg}}; border: 1.5px {{seg.bs}} {{seg.bd}}; transition: background-color 260ms ease, border-color 260ms ease; animation: growY 360ms cubic-bezier(0.2, 0.8, 0.2, 1) {{seg.delay}} both; transform-origin: 50% 100%"></span>
+            <span style="font-size: 10px; min-height: 14px; color: {{seg.labelColor}}; font-weight: {{seg.labelWeight}}">{{seg.label}}</span>
+          </div>
+        </sc-for>
+      </div>
+      <span style="font-size: 13px; color: #5D5A52">Last {{windowSize}} scheduled days · <span style="font-weight: 600; color: {{previewColor}}">{{previewLine}}</span></span>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 12px">
+      <span style="font-size: 18px; font-weight: 500">Did you do it?</span>
+      <div style="display: flex; gap: 12px">
+        <button onClick="{{setYes}}" aria-pressed="{{yesPressed}}" style="flex: 1; min-height: 88px; border-radius: 18px; border: 1.5px solid {{yesBd}}; background: {{yesBg}}; color: {{yesFg}}; font-size: 17px; font-weight: 500; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px">
+          <svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
+          Yes
+        </button>
+        <button onClick="{{setNo}}" aria-pressed="{{noPressed}}" style="flex: 1; min-height: 88px; border-radius: 18px; border: 1.5px solid {{noBd}}; background: {{noBg}}; color: {{noFg}}; font-size: 17px; font-weight: 500; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px">
+          <svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+          Not today
+        </button>
+      </div>
+    </div>
+
+    <sc-if value="{{showWhy}}" hint-placeholder-val="{{false}}">
+      <div style="display: flex; flex-direction: column; gap: 4px; padding-left: 14px; border-left: 2px solid #C9C2B3; animation: riseIn 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both">
+        <span style="font-size: 12px; color: #5D5A52">Why you started</span>
+        <span style="font-size: 17px; font-style: italic; line-height: 1.35; color: #2B2A26; font-family: Fraunces, Georgia, 'Times New Roman', serif; font-optical-sizing: auto">{{sel.why}}</span>
+      </div>
+    </sc-if>
+
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <label for="log-note" style="font-size: 15px; font-weight: 500; line-height: 1.3; color: #5D5A52">A note for future you <span style="font-weight: 400">(optional)</span></label>
+      <div style="position: relative">
+        <textarea id="log-note" value="{{logForm.note}}" onChange="{{setNote}}" rows="3" placeholder="{{notePrompt}}" style="box-sizing: border-box; padding: 14px 60px 14px 16px; border-radius: 16px; border: 0; background: #EDE9E0; font-size: 15px; line-height: 1.45; color: #2B2A26; width: 100%; resize: none; display: block"></textarea>
+        <button aria-label="Record a voice note" style="position: absolute; right: 8px; bottom: 8px; width: 44px; height: 44px; border-radius: 999px; border: 0; background: #2F7A4B; color: #FFFFFF; cursor: pointer; display: inline-flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M5 10a7 7 0 0 0 14 0M12 17v5M8 22h8"></path></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <div style="position: sticky; bottom: 0; padding: 12px 24px 24px; background: #DAD4C8; display: flex; flex-direction: column; align-items: center; gap: 4px">
+    <button onClick="{{submitLog}}" disabled="{{submitDisabled}}" style="width: 100%; min-height: 56px; padding: 0 32px; border-radius: 999px; border: 0; background: {{submitBg}}; color: {{submitFg}}; font-size: 18px; font-weight: 500; cursor: pointer">{{submitLabel}}</button>
+    <sc-if value="{{canClear}}" hint-placeholder-val="{{false}}">
+      <button onClick="{{clearLog}}" style="min-height: 44px; padding: 0 16px; border: 0; background: transparent; color: #5D5A52; font-size: 13px; text-decoration: underline; cursor: pointer">Clear today’s log</button>
+    </sc-if>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{isAnalysis}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; min-height: 844px; box-sizing: border-box; animation: screenIn 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both">
+  <div style="display: flex; flex-direction: column; gap: 18px; padding: 48px 24px 28px; flex: 1">
+    <button onClick="{{goHome}}" aria-label="Back to experiments" style="width: 44px; height: 44px; border-radius: 999px; border: 0; background: transparent; color: #4B5B4F; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; margin-left: -10px">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
+    </button>
+
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <span style="font-size: 12px; font-weight: 500; letter-spacing: 1.2px; text-transform: uppercase; color: #96371C">{{sel.scheduleLabel}} · {{sel.whereLine}}</span>
+      <h1 style="margin: 0; font-size: 32px; font-weight: 500; line-height: 1.15; color: #2B2A26; text-wrap: balance">{{sel.title}}</h1>
+      <sc-if value="{{sel.hasWhy}}" hint-placeholder-val="{{false}}">
+        <span style="font-size: 16px; font-style: italic; line-height: 1.35; color: #5D5A52; font-family: Fraunces, Georgia, 'Times New Roman', serif; font-optical-sizing: auto">{{sel.why}}</span>
+      </sc-if>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 14px; padding: 16px; background: #EDE9E0; border-radius: 16px">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px">
+        <span style="font-size: 14px; font-weight: 500">Sliding consistency</span>
+        <span style="font-size: 11px; color: #5D5A52">last {{windowSize}} scheduled days</span>
+      </div>
+      <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 12px">
+        <span style="font-size: 64px; font-weight: 500; line-height: 0.85; letter-spacing: -1px; color: #2E5A2B; font-family: Fraunces, Georgia, 'Times New Roman', serif; font-optical-sizing: auto">{{sel.pctLabel}}</span>
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right">
+          <span style="font-size: 14px; font-weight: 500; color: #96371C">{{sel.tierName}}</span>
+          <span style="font-size: 12px; color: #5D5A52; line-height: 1.35; text-wrap: balance">{{sel.heroLine}}</span>
+        </div>
+      </div>
+      <div style="display: flex; gap: 4px">
+        <sc-for list="{{sel.segments}}" as="seg" hint-placeholder-count="7">
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: center">
+            <span style="width: 100%; height: 26px; border-radius: 5px; box-sizing: border-box; background: {{seg.bg}}; border: 1.5px solid {{seg.bd}}; animation: pop 380ms cubic-bezier(0.2, 0.8, 0.2, 1) {{seg.delay}} both"></span>
+            <span style="font-size: 10px; min-height: 14px; color: #5D5A52">{{seg.label}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px; padding: 16px; background: #EDE9E0; border-radius: 16px">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px">
+        <span style="font-size: 26px; font-weight: 500; line-height: 1">Day <span style="font-size: 32px; font-family: Fraunces, Georgia, 'Times New Roman', serif; font-optical-sizing: auto">{{sel.dayNum}}</span><span style="font-size: 17px; color: #5D5A52; font-family: Fraunces, Georgia, 'Times New Roman', serif; font-optical-sizing: auto">/{{sel.length}}</span></span>
+        <span style="font-size: 12px; color: #5D5A52">{{sel.journeyRight}}</span>
+      </div>
+      <div style="display: flex; gap: 3px">
+        <sc-for list="{{sel.phases}}" as="ph" hint-placeholder-count="3">
+          <div style="flex: {{ph.flex}}; display: flex; flex-direction: column; gap: 6px; min-width: 0">
+            <div style="height: 8px; border-radius: 4px; background: #DAD4C8; overflow: hidden">
+              <div style="height: 8px; border-radius: 4px; background: #2F7A4B; width: {{ph.fill}}%; transform-origin: 0 50%; animation: growX 600ms cubic-bezier(0.2, 0.8, 0.2, 1) {{ph.delay}} both"></div>
+            </div>
+            <span style="font-size: 10px; color: {{ph.color}}; font-weight: {{ph.weight}}">{{ph.label}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 12px; padding: 16px; background: #EDE9E0; border-radius: 16px">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px">
+        <span style="font-size: 14px; font-weight: 500">Sliding average over time</span>
+        <span style="font-size: 11px; color: #5D5A52">overall {{sel.overallPct}} · {{sel.doneTotal}}/{{sel.dueTotal}}</span>
+      </div>
+      <sc-if value="{{sel.hasTrend}}" hint-placeholder-val="{{true}}">
+        <div style="display: flex; align-items: flex-end; gap: 2px; height: 96px; border-bottom: 1.5px solid #C9C2B3">
+          <sc-for list="{{sel.trend}}" as="b" hint-placeholder-count="12">
+            <span title="{{b.title}}" style="flex: 1; max-width: 16px; border-radius: 2px 2px 0 0; background: {{b.bg}}; height: {{b.h}}%; transform-origin: 50% 100%; animation: growY 500ms cubic-bezier(0.2, 0.8, 0.2, 1) {{b.delay}} both"></span>
+          </sc-for>
+        </div>
+        <div style="display: flex; justify-content: space-between">
+          <span style="font-size: 10px; color: #5D5A52">{{sel.trendStart}}</span>
+          <span style="font-size: 10px; color: #5D5A52">{{sel.trendEnd}}</span>
+        </div>
+        <span style="font-size: 12px; color: #5D5A52; line-height: 1.4">Each bar is your last {{windowSize}} scheduled days as of that day. Paler bars had fewer than {{windowSize}} to go on.</span>
+      </sc-if>
+      <sc-if value="{{sel.noTrend}}" hint-placeholder-val="{{false}}">
+        <span style="font-size: 13px; color: #5D5A52">No scheduled days have passed yet.</span>
+      </sc-if>
+    </div>
+
+    <sc-if value="{{sel.hasNotes}}" hint-placeholder-val="{{false}}">
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <span style="font-size: 14px; font-weight: 500">Notes</span>
+        <sc-for list="{{sel.notes}}" as="n" hint-placeholder-count="2">
+          <div style="display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; background: #EDE9E0; border-radius: 14px">
+            <span style="font-size: 11px; color: #5D5A52">{{n.date}} · {{n.result}}</span>
+            <span style="font-size: 13px; line-height: 1.4">{{n.text}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{sel.decided}}" hint-placeholder-val="{{false}}">
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 16px; background: #EDE9E0; border-radius: 16px">
+        <span style="font-size: 14px; font-weight: 500; color: {{sel.decisionColor}}">{{sel.decisionLine}}</span>
+        <span style="font-size: 13px; line-height: 1.4">{{sel.decisionText}}</span>
+      </div>
+    </sc-if>
+  </div>
+
+  <sc-if value="{{sel.dueNow}}" hint-placeholder-val="{{false}}">
+    <div style="position: sticky; bottom: 0; padding: 12px 24px 24px; background: #DAD4C8">
+      <button onClick="{{logSelected}}" style="width: 100%; min-height: 56px; padding: 0 32px; border-radius: 999px; border: 0; background: #2F7A4B; color: #FFFFFF; font-size: 18px; font-weight: 500; cursor: pointer">Log today</button>
+    </div>
+  </sc-if>
+  <sc-if value="{{sel.canEdit}}" hint-placeholder-val="{{false}}">
+    <div style="position: sticky; bottom: 0; padding: 12px 24px 24px; background: #DAD4C8; display: flex; align-items: center; justify-content: space-between; gap: 12px">
+      <span style="font-size: 14px; color: #2E5A2B; font-weight: 500">Logged today: {{sel.todayResult}}</span>
+      <button onClick="{{logSelected}}" style="min-height: 44px; padding: 0 20px; border-radius: 999px; border: 1.5px solid #C9C2B3; background: #EDE9E0; color: #2B2A26; font-size: 14px; cursor: pointer">Edit</button>
+    </div>
+  </sc-if>
+  <sc-if value="{{sel.readyToDecide}}" hint-placeholder-val="{{false}}">
+    <div style="position: sticky; bottom: 0; padding: 12px 24px 24px; background: #DAD4C8">
+      <button onClick="{{decideSelected}}" style="width: 100%; min-height: 56px; padding: 0 32px; border-radius: 999px; border: 0; background: #2F7A4B; color: #FFFFFF; font-size: 18px; font-weight: 500; cursor: pointer">Decide: keep it or drop it</button>
+    </div>
+  </sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{isCelebrate}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; min-height: 844px; box-sizing: border-box; background: #2F7A4B; color: #F3F0E9; padding: 24px 24px 32px; position: relative">
+  <div style="display: flex; justify-content: flex-end">
+    <button onClick="{{goHome}}" aria-label="Close" style="width: 44px; height: 44px; border-radius: 999px; border: 0; background: rgba(243, 240, 233, 0.14); color: #F3F0E9; cursor: pointer; display: inline-flex; align-items: center; justify-content: center">
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+    </button>
+  </div>
+  <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px">
+    <div style="position: relative; width: 300px; height: 300px">
+      <sc-for list="{{sel.ring}}" as="d" hint-placeholder-count="65">
+        <span style="position: absolute; width: 9px; height: 9px; border-radius: 999px; box-sizing: border-box; left: {{d.x}}px; top: {{d.y}}px; background: {{d.bg}}; border: 1.5px solid #F3F0E9; animation: pop 300ms cubic-bezier(0.2, 0.8, 0.2, 1) {{d.delay}} both"></span>
+      </sc-for>
+      <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px">
+        <span style="font-size: 112px; font-weight: 500; line-height: 1; letter-spacing: -3px; font-family: Fraunces, Georgia, 'Times New Roman', serif; font-optical-sizing: auto; animation: bigPop 600ms cubic-bezier(0.2, 0.8, 0.2, 1) 1000ms both">65</span>
+        <span style="font-size: 15px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; opacity: 0.85; animation: riseIn 400ms ease-out 1250ms both">days</span>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; animation: riseIn 500ms cubic-bezier(0.2, 0.8, 0.2, 1) 1450ms both">
+      <span style="font-size: 26px; font-weight: 500; line-height: 1.2">You actually did it.</span>
+      <span style="font-size: 16px; line-height: 1.4; opacity: 0.9; text-wrap: balance">65 days of {{sel.title}}. You showed up on {{sel.doneTotal}}/{{sel.dueTotal}} scheduled days, {{sel.best}} in a row at your best.</span>
+    </div>
+  </div>
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 10px">
+    <button onClick="{{decideSelected}}" style="min-height: 56px; padding: 0 36px; border-radius: 999px; border: 0; background: #F3F0E9; color: #2E5A2B; font-size: 18px; font-weight: 500; animation: riseIn 400ms ease-out 1750ms both, breathe 2400ms ease-in-out 2400ms infinite; cursor: pointer">Reflect on it</button>
+    <button onClick="{{goHome}}" style="min-height: 44px; padding: 0 16px; border: 0; background: transparent; color: #F3F0E9; font-size: 14px; cursor: pointer; opacity: 0.85">Later</button>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{isDecide}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; min-height: 844px; box-sizing: border-box; animation: screenIn 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both">
+  <div style="display: flex; flex-direction: column; gap: 6px; padding: 24px 24px 22px; background: #2F7A4B; color: #F3F0E9">
+    <div style="display: flex; align-items: center; justify-content: space-between">
+      <button onClick="{{goHome}}" aria-label="Back to experiments" style="width: 44px; height: 44px; border-radius: 999px; border: 0; background: transparent; color: #F3F0E9; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; margin-left: -10px">
+        <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
+      </button>
+      <span style="font-size: 13px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; opacity: 0.85">Day 65</span>
+    </div>
+    <span style="font-size: 26px; font-weight: 500; line-height: 1.2">{{sel.title}}</span>
+    <span style="font-size: 13px; opacity: 0.9">{{sel.overallPct}} done · {{sel.doneTotal}}/{{sel.dueTotal}} scheduled days · best streak {{sel.best}}</span>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 14px; padding: 20px 24px 24px; flex: 1">
+    <div style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: #EDE9E0; border-radius: 16px">
+      <button aria-label="Answer all four by voice" style="width: 48px; height: 48px; flex-shrink: 0; border-radius: 999px; border: 0; background: #2F7A4B; color: #F3F0E9; cursor: pointer; display: inline-flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M5 10a7 7 0 0 0 14 0M12 17v5M8 22h8"></path></svg></button>
+      <span style="font-size: 13px; line-height: 1.4; color: #2B2A26">Say it in one go. Your answer gets sorted into the four questions below.</span>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; background: #EDE9E0; border-radius: 16px">
+      <span style="font-size: 15px; font-weight: 500; line-height: 1.3">When did it stop feeling like effort?</span>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+        <sc-for list="{{effortChips}}" as="c" hint-placeholder-count="4">
+          <button onClick="{{c.pick}}" aria-pressed="{{c.pressed}}" style="min-height: 40px; padding: 0 8px; border-radius: 999px; border: 1.5px solid {{c.bd}}; background: {{c.bg}}; color: {{c.fg}}; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap">{{c.label}}</button>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; background: #EDE9E0; border-radius: 16px">
+      <span style="font-size: 15px; font-weight: 500; line-height: 1.3">Will it survive without the tracking?</span>
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+        <sc-for list="{{surviveChips}}" as="c" hint-placeholder-count="4">
+          <button onClick="{{c.pick}}" aria-pressed="{{c.pressed}}" style="min-height: 40px; padding: 0 4px; border-radius: 999px; border: 1.5px solid {{c.bd}}; background: {{c.bg}}; color: {{c.fg}}; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap">{{c.label}}</button>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; background: #EDE9E0; border-radius: 16px">
+      <span style="font-size: 15px; font-weight: 500; line-height: 1.3">What did it cost you?</span>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+        <sc-for list="{{costChips}}" as="c" hint-placeholder-count="4">
+          <button onClick="{{c.pick}}" aria-pressed="{{c.pressed}}" style="min-height: 40px; padding: 0 8px; border-radius: 999px; border: 1.5px solid {{c.bd}}; background: {{c.bg}}; color: {{c.fg}}; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap">{{c.label}}</button>
+        </sc-for>
+      </div>
+      <input type="text" aria-label="More on what it cost" value="{{decideForm.costNote}}" onChange="{{setCostNote}}" placeholder="Anything else it cost? (optional)" style="min-height: 44px; box-sizing: border-box; padding: 0 12px; border-radius: 12px; border: 1.5px solid #C9C2B3; background: #F3F0E9; font-size: 14px; color: #2B2A26; width: 100%">
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; background: #EDE9E0; border-radius: 16px">
+      <label for="decide-change" style="font-size: 15px; font-weight: 500; line-height: 1.3">What did it quietly change?</label>
+      <textarea id="decide-change" value="{{decideForm.change}}" onChange="{{setChange}}" rows="2" placeholder="The thing you’d tell a friend" style="box-sizing: border-box; padding: 10px 12px; border-radius: 12px; border: 1.5px solid #C9C2B3; background: #F3F0E9; font-size: 14px; line-height: 1.4; color: #2B2A26; width: 100%; resize: none; display: block"></textarea>
+    </div>
+  </div>
+
+  <div style="position: sticky; bottom: 0; padding: 12px 24px 24px; background: #DAD4C8; display: flex; flex-direction: column; gap: 8px">
+    <span style="font-size: 12px; color: #5D5A52; text-align: center">Either way, tracking stops here.</span>
+    <div style="display: flex; gap: 12px">
+      <button onClick="{{dropIt}}" style="flex: 1; min-height: 56px; border-radius: 999px; border: 1.5px solid #96371C; background: transparent; color: #96371C; font-size: 17px; font-weight: 500; cursor: pointer">Drop it</button>
+      <button onClick="{{keepIt}}" style="flex: 1; min-height: 56px; border-radius: 999px; border: 0; background: #2F7A4B; color: #FFFFFF; font-size: 17px; font-weight: 500; cursor: pointer">Keep it</button>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"startScreen":{"editor":"enum","options":["home","welcome","create","setup","log","analysis","celebrate","decide"],"default":"home","section":"Prototype"},"firstRun":{"editor":"boolean","default":false,"section":"Prototype"},"newUser":{"editor":"boolean","default":false,"section":"Prototype"},"startDial":{"editor":"boolean","default":false,"section":"Prototype"},"windowSize":{"editor":"int","default":7,"min":3,"max":14,"section":"Consistency"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const today = this.todayDate();
+    const start = props.startScreen || 'home';
+    const first = !!props.firstRun || start === 'welcome' || start === 'setup';
+    let exps = first ? [] : props.newUser ? this.seed(today).filter((e) => e.id === 'meals') : this.seed(today);
+    if (start === 'setup') exps = [{ id: 'first', title: 'Eat 3 meals a day', schedule: { type: 'days', days: [0, 1, 2, 3, 4, 5, 6] }, start: today, length: 65, where: '', why: '', tracking: 'check', logs: {} }];
+    this.state = {
+      screen: start,
+      firstRun: first,
+      experiments: exps,
+      selectedId: start === 'setup' ? 'first' : start === 'decide' || start === 'celebrate' ? 'stretch' : start === 'analysis' ? 'gym' : start === 'log' ? 'retainer' : 'meals',
+      form: this.blankForm(),
+      logForm: { done: null, note: '' },
+      logReturn: 'home',
+      flash: null,
+      decideForm: this.blankDecide(),
+      dialPhase: props.startDial ? 'open' : 'closed',
+      reminder: { on: true, time: '20:00' }
+    };
+  }
+
+  blankDecide() { return { effort: null, survive: null, cost: [], costNote: '', change: '' }; }
+  blankForm() { return { title: '', days: [0, 1, 2, 3, 4, 5, 6], where: '', why: '', tracking: 'check', length: 65 }; }
+
+  todayDate() { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+  key(d) { const m = d.getMonth() + 1, dd = d.getDate(); return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (dd < 10 ? '0' : '') + dd; }
+  addDays(d, n) { const r = new Date(d.getFullYear(), d.getMonth(), d.getDate()); r.setDate(r.getDate() + n); return r; }
+  weekStart(d) { return this.addDays(d, -((d.getDay() + 6) % 7)); }
+  monthNames() { return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; }
+  dayNames() { return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']; }
+  fmt(d) { return this.dayNames()[d.getDay()] + ', ' + this.monthNames()[d.getMonth()] + ' ' + d.getDate(); }
+  fmtLong(d) { return ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d.getDay()] + ', ' + this.monthNames()[d.getMonth()] + ' ' + d.getDate(); }
+  fmtShort(d) { return this.monthNames()[d.getMonth()] + ' ' + d.getDate(); }
+
+  haptic(kind) {
+    const p = { tick: 4, tap: 10, yes: [12, 40, 18], no: 22, open: 8, celebrate: [20, 60, 20, 60, 40, 80, 120] }[kind];
+    try { if (p && navigator.vibrate) navigator.vibrate(p); } catch (err) {}
+  }
+
+  seed(today) {
+    const mk = (id, title, days, ago, missedFromEnd, where, why, notes, todayDone) => {
+      const ex = { id, title, schedule: { type: 'days', days }, start: this.addDays(today, -ago), length: 65, where, why, tracking: 'check', logs: {} };
+      const all = this.occasions(ex, today);
+      const occ = all.filter((o) => o.date < today);
+      occ.forEach((o, i) => { ex.logs[o.key] = { done: missedFromEnd.indexOf(occ.length - 1 - i) < 0, note: '' }; });
+      (notes || []).forEach((n) => { const o = occ[occ.length - 1 - n.ago]; if (o && ex.logs[o.key]) ex.logs[o.key].note = n.text; });
+      if (todayDone !== undefined && all.some((o) => o.key === this.key(today))) ex.logs[this.key(today)] = { done: todayDone, note: '' };
+      return ex;
+    };
+    const every = [0, 1, 2, 3, 4, 5, 6];
+    const sinceMonday = (today.getDay() + 6) % 7;
+    return [
+      mk('meals', 'Eat 3 meals a day', every, Math.min(3, sinceMonday), [1], 'Home and at work', 'Stop skipping lunch and crashing at 4 pm.',
+        [{ ago: 0, text: 'Breakfast, lunch at my desk, dinner with my bf.' }, { ago: 1, text: 'Back-to-back meetings, only ate once.' }]),
+      mk('retainer', 'Wear retainer', every, 27, [0, 1, 3, 5, 9, 10, 14, 15, 18, 22], 'Bedroom, before sleep', 'Keep my teeth where the braces put them.', []),
+      mk('gym', 'Gym session', [1, 3, 4], 38, [1, 4, 9], 'Gym near work', 'Feel strong and sleep better.',
+        [{ ago: 0, text: 'Legs. Felt strong.' }]),
+      mk('wake', 'Wake up at 5:30', [1, 2, 3, 4, 5], 60, [11, 19, 30], 'Home', '', [], true),
+      mk('stretch', 'Stretch before bed', every, 64, [2, 9, 15, 16, 31, 40, 52], 'Bedroom floor', 'Wind down without my phone.', [{ ago: 0, text: 'Did not even think about it, just did it.' }]),
+      mk('grandma', 'Call grandma', [2, 6], 49 + sinceMonday, [3], 'Walk home from work', '', [])
+    ];
+  }
+
+  isDue(ex, d) { return (ex.schedule.days || []).indexOf(d.getDay()) >= 0; }
+
+  occasions(ex, today) {
+    const out = [];
+    const last = this.addDays(ex.start, (ex.length || 65) - 1);
+    const stop = last < today ? last : today;
+    let d = this.addDays(ex.start, 0);
+    while (d <= stop) {
+      if (this.isDue(ex, d)) out.push({ key: this.key(d), date: d });
+      d = this.addDays(d, 1);
+    }
+    return out;
+  }
+
+  status(ex, o, today) {
+    const l = ex.logs[o.key];
+    if (l) return l.done ? 'done' : 'missed';
+    return o.date < today ? 'missed' : 'pending';
+  }
+
+  scheduleLabel(s) {
+    const D = this.dayNames();
+    const sd = (s.days || []).slice().sort().join(',');
+    if (sd === '0,1,2,3,4,5,6') return 'Every day';
+    if (sd === '1,2,3,4,5') return 'Weekdays';
+    if (sd === '0,6') return 'Weekends';
+    const ds = [1, 2, 3, 4, 5, 6, 0].filter((x) => (s.days || []).indexOf(x) >= 0);
+    return ds.length ? ds.map((x) => D[x]).join(' · ') : 'No days picked';
+  }
+
+  nextDue(ex, today) {
+    const last = this.addDays(ex.start, (ex.length || 65) - 1);
+    for (let n = 1; n <= 7; n++) {
+      const d = this.addDays(today, n);
+      if (d > last) return null;
+      if (this.isDue(ex, d)) return d;
+    }
+    return null;
+  }
+
+  analyze(ex, today, N, todayKey) {
+    const occ = this.occasions(ex, today);
+    const resolved = []; let pending = null;
+    occ.forEach((o) => { o.status = this.status(ex, o, today); if (o.status === 'pending') pending = o; else resolved.push(o); });
+    const win = resolved.slice(-N);
+    const done = win.filter((o) => o.status === 'done').length;
+    const misses = win.length - done;
+    const pct = win.length ? Math.round(100 * done / win.length) : 0;
+    const tier = resolved.length < N ? 'new' : misses > 3 ? 'inconsistent' : misses >= 2 ? 'semi' : 'mature';
+    const tierName = { new: 'New Habit', inconsistent: 'Inconsistent Habit', semi: 'Semimature Habit', mature: 'Mature Habit' }[tier];
+    const segOf = (o) => o.status === 'done' ? { bg: '#2F7A4B', bd: '#2F7A4B' } : { bg: '#E0875A', bd: '#E0875A' };
+    const segments = [];
+    win.forEach((o) => segments.push(Object.assign({ label: String(o.date.getDate()) }, segOf(o))));
+    if (pending && segments.length < N) segments.push({ bg: 'transparent', bd: '#2F7A4B', label: 'today' });
+    while (segments.length < N) segments.push({ bg: 'transparent', bd: '#A9A295', label: '' });
+    segments.forEach((sg, k) => { sg.delay = (180 + 45 * k) + 'ms'; });
+
+    let best = 0, run = 0; resolved.forEach((o) => { run = o.status === 'done' ? run + 1 : 0; if (run > best) best = run; });
+    const doneTotal = resolved.filter((o) => o.status === 'done').length;
+    const trend = resolved.map((o, i) => {
+      const w = resolved.slice(Math.max(0, i - N + 1), i + 1);
+      const p = Math.round(100 * w.filter((x) => x.status === 'done').length / w.length);
+      return { h: Math.max(4, p), bg: i < N - 1 ? '#A9B9A4' : '#2F7A4B', title: this.fmtShort(o.date) + ': ' + p + '%', delay: Math.round(250 + 600 * i / Math.max(1, resolved.length)) + 'ms' };
+    });
+
+    const rawDay = Math.round((today - ex.start) / 86400000) + 1;
+    const dayNum = Math.min(ex.length, rawDay);
+    const lastKey = this.key(this.addDays(ex.start, ex.length - 1));
+    const complete = rawDay > ex.length || !!ex.logs[lastKey];
+    const finalDay = lastKey === todayKey && !complete;
+    const phase = complete ? 'Decision' : dayNum <= 21 ? 'Initiation phase' : dayNum <= 43 ? 'Momentum phase' : 'Integration phase';
+    const phases = [[1, 21, 'Initiation'], [22, 43, 'Momentum'], [44, 65, 'Integration']].map((p, k) => {
+      const len = p[1] - p[0] + 1; const fill = Math.max(0, Math.min(1, (dayNum - p[0] + 1) / len));
+      const cur = !complete && dayNum >= p[0] && dayNum <= p[1];
+      return { flex: len, fill: Math.round(fill * 100), label: p[2], color: cur ? '#2B2A26' : '#5D5A52', weight: cur ? 600 : 400, delay: (150 + 180 * k) + 'ms' };
+    });
+    const overallPct = resolved.length ? Math.round(100 * doneTotal / resolved.length) + '%' : '—';
+
+    const todayLog = ex.logs[todayKey];
+    const dueToday = occ.some((o) => o.key === todayKey);
+    const loggedToday = !!todayLog;
+    const dueNow = dueToday && !loggedToday && !complete;
+    const notDue = !dueToday && !loggedToday && !complete;
+    const nd = this.nextDue(ex, today);
+    const dec = ex.decision || null;
+    const ring = resolved.map((o, i) => { const a = -Math.PI / 2 + 2 * Math.PI * i / Math.max(1, resolved.length); return { x: Math.round(150 + 138 * Math.cos(a) - 4.5), y: Math.round(150 + 138 * Math.sin(a) - 4.5), bg: o.status === 'done' ? '#F3F0E9' : 'transparent', delay: Math.round(150 + 850 * i / Math.max(1, resolved.length)) + 'ms' }; });
+    const notes = resolved.filter((o) => ex.logs[o.key] && ex.logs[o.key].note).slice(-3).reverse()
+      .map((o) => ({ date: this.fmt(o.date), result: ex.logs[o.key].done ? 'done' : 'missed', text: ex.logs[o.key].note }));
+    const standing = tier === 'new' ? resolved.length + '/' + N : pct + '%';
+
+    return {
+      ex, tier, tierName, tracked: resolved.length,
+      title: ex.title, scheduleLabel: this.scheduleLabel(ex.schedule), whereLine: ex.where || 'anywhere',
+      why: ex.why || '', hasWhy: !!ex.why,
+      pct, pctLabel: standing, standingText: standing + (tier === 'new' ? ' tracked' : ''),
+      heroLine: tier === 'new' ? 'tracked so far. The average starts at ' + N + '.' : 'Missed ' + misses + '/' + win.length + ' recent scheduled days',
+      segments,
+      logBase: resolved.filter((o) => o.key !== todayKey).slice(-(N - 1)).map((o) => ({ done: o.status === 'done', label: String(o.date.getDate()) })),
+      dayNum, length: ex.length, phase, phases,
+      dayLine: 'Day ' + dayNum + '/' + ex.length,
+      journeyRight: complete ? 'Trial over' : dueNow ? 'Due today' : loggedToday ? 'Logged today' : nd ? 'Next: ' + this.fmt(nd) : '',
+      best, doneTotal, dueTotal: resolved.length, overallPct,
+      trend, hasTrend: trend.length > 0, noTrend: trend.length === 0,
+      trendStart: resolved.length ? this.fmtShort(resolved[0].date) : '', trendEnd: resolved.length ? this.fmtShort(resolved[resolved.length - 1].date) : '',
+      todayLabel: this.fmt(today), todayResult: todayLog ? (todayLog.done ? 'Yes' : 'No') : '',
+      dueToday, loggedToday, dueNow, notDue, finalDay, canEdit: loggedToday && !complete,
+      complete, readyToDecide: complete && !dec, decided: !!dec,
+      decisionLine: dec ? (dec.outcome === 'keep' ? 'Kept' : 'Dropped') + ' on ' + this.fmt(dec.date) : '',
+      decisionText: dec ? (dec.summary || 'No notes written.') : '', decisionColor: dec && dec.outcome === 'keep' ? '#2E5A2B' : '#96371C',
+      ring, notes, hasNotes: notes.length > 0
+    };
+  }
+
+  renderVals() {
+    const N = Math.max(3, Math.min(14, Number(this.props.windowSize) || 7));
+    const today = this.todayDate();
+    const todayKey = this.key(today);
+    const st = this.state;
+    const exps = st.experiments;
+    const goHome = () => this.setState({ screen: 'home' });
+    const goCreate = () => this.setState({ screen: 'create' });
+    const openAnalysis = (id) => () => this.setState({ screen: 'analysis', selectedId: id });
+    const openLog = (id, ret, preset) => () => {
+      const ex = this.state.experiments.find((e) => e.id === id); const l = ex ? ex.logs[todayKey] : null;
+      if (preset === false && !l) this.haptic('no');
+      this.setState({ screen: 'log', selectedId: id, logReturn: ret || 'home', logForm: { done: l ? l.done : (preset === undefined ? null : preset), note: l ? l.note : '' } });
+    };
+
+    const analyzed = exps.map((ex) => this.analyze(ex, today, N, todayKey));
+    const blank = this.analyze({ id: '_', title: '', schedule: { type: 'days', days: [0, 1, 2, 3, 4, 5, 6] }, start: today, length: 65, where: '', why: '', logs: {} }, today, N, todayKey);
+    const sel = analyzed.find((a) => a.ex.id === st.selectedId) || analyzed[0] || blank;
+
+    // Writes today's log for one experiment, remembers the before/after for the Home row, and opens the celebration on day 65.
+    const writeLog = (id, done, note, ret) => {
+      const before = analyzed.find((a) => a.ex.id === id);
+      const exs = this.state.experiments.map((e) => {
+        if (e.id !== id) return e;
+        const logs = Object.assign({}, e.logs); logs[todayKey] = { done, note };
+        return Object.assign({}, e, { logs });
+      });
+      const afterEx = exs.find((e) => e.id === id);
+      const after = this.analyze(afterEx, today, N, todayKey);
+      const done65 = this.key(this.addDays(afterEx.start, afterEx.length - 1)) === todayKey && done;
+      this.haptic(done65 ? 'celebrate' : done ? 'yes' : 'tap');
+      this.setState({ experiments: exs, selectedId: done65 ? id : this.state.selectedId, screen: done65 ? 'celebrate' : ret,
+        flash: { id, text: before && before.pctLabel !== after.pctLabel ? before.pctLabel + ' → ' + after.pctLabel : after.standingText } });
+    };
+    const quickYes = (id) => () => writeLog(id, true, '', 'home');
+
+    const tierDefs = [
+      { id: 'new', name: 'New Habits', rule: '< ' + N + ' scheduled days tracked', emptyLine: 'Nothing new brewing. Room for a fresh experiment.' },
+      { id: 'inconsistent', name: 'Inconsistent Habits', rule: '> 3 misses / last ' + N, emptyLine: 'Nothing wobbling. Suspiciously steady.' },
+      { id: 'semi', name: 'Semimature Habits', rule: '2–3 misses / last ' + N, emptyLine: 'Nothing halfway there. Yet.' },
+      { id: 'mature', name: 'Mature Habits', rule: '≤ 1 miss / last ' + N, emptyLine: 'Nothing on autopilot yet. Give it a few weeks.' }
+    ];
+    const tiers = tierDefs.map((t, k) => {
+      const items = analyzed.filter((a) => a.tier === t.id && !a.complete).map((a, i) => ({
+        title: a.title, pct: a.pctLabel, dayLine: a.dayLine, segments: a.segments,
+        open: openAnalysis(a.ex.id), openLabel: a.title + ', ' + a.standingText + ', ' + a.dayLine, bt: i ? '1px solid #DAD4C8' : '0'
+      }));
+      return { name: t.name, rule: t.rule, items, empty: items.length === 0, filled: items.length > 0, emptyLine: t.emptyLine, delay: (120 + 70 * k) + 'ms' };
+    });
+
+    const flash = st.flash;
+    const todayList = analyzed.filter((a) => a.dueToday && !a.complete);
+    const todayRows = todayList.map((a, i) => {
+      const logged = a.loggedToday; const didIt = logged && a.ex.logs[todayKey].done;
+      return {
+        title: a.title,
+        sub: logged ? a.dayLine : (a.finalDay ? 'Final day' : a.dayLine) + ' · ' + a.standingText,
+        subColor: a.finalDay && !logged ? '#96371C' : '#5D5A52',
+        pending: !logged, logged,
+        statusLabel: didIt ? 'Done' : 'Missed', statusColor: didIt ? '#2E5A2B' : '#96371C',
+        icon: didIt ? 'M20 6 9 17l-5-5' : 'M18 6 6 18M6 6l12 12',
+        delta: flash && flash.id === a.ex.id ? flash.text : a.standingText,
+        bt: i ? '1px solid #DAD4C8' : '0',
+        open: openAnalysis(a.ex.id), yes: quickYes(a.ex.id), no: openLog(a.ex.id, 'home', false), edit: openLog(a.ex.id, 'home'),
+        yesLabel: 'Done today: ' + a.title, noLabel: 'Not today: ' + a.title, editLabel: 'Edit today’s log: ' + a.title
+      };
+    });
+    const loggedCount = todayList.filter((a) => a.loggedToday).length;
+    const todayNote = todayList.length === 0 ? 'Nothing scheduled today.' : loggedCount === todayList.length ? 'All logged. Go live your life.' : '';
+
+    const openDecide = (id) => () => { const ex = this.state.experiments.find((e) => e.id === id); this.setState({ screen: 'decide', selectedId: id, decideForm: ex && ex.decision && ex.decision.answers ? ex.decision.answers : this.blankDecide() }); };
+    const ready = analyzed.filter((a) => a.readyToDecide).map((a) => ({ title: a.title, summary: a.overallPct + ' done · ' + a.doneTotal + '/' + a.dueTotal + ' scheduled days', open: openAnalysis(a.ex.id), decide: openDecide(a.ex.id) }));
+    const decidedList = analyzed.filter((a) => a.decided).map((a) => ({ title: a.title, outcome: a.decisionLine, color: a.decisionColor, open: openAnalysis(a.ex.id) }));
+    const ws = this.weekStart(today);
+    const startedThisWeek = exps.filter((e) => e.start >= ws).length;
+    const limitReached = startedThisWeek >= 3;
+
+    const f = st.form;
+    const setF = (patch) => this.setState({ form: Object.assign({}, this.state.form, patch) });
+    const chip = (on) => on ? { bg: '#2F7A4B', fg: '#FFFFFF', bd: '#2F7A4B', pressed: true } : { bg: '#EDE9E0', fg: '#2B2A26', bd: '#C9C2B3', pressed: false };
+    const curDays = f.days.slice().sort().join(',');
+    const typeChips = [['Every day', [0, 1, 2, 3, 4, 5, 6]], ['Weekdays', [1, 2, 3, 4, 5]], ['Weekends', [0, 6]]]
+      .map((p) => Object.assign({ label: p[0], pick: () => setF({ days: p[1].slice() }) }, chip(curDays === p[1].slice().sort().join(','))));
+    const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'], dayFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], dayIdx = [1, 2, 3, 4, 5, 6, 0];
+    const dayChips = dayLabels.map((label, i) => {
+      const dow = dayIdx[i]; const on = f.days.indexOf(dow) >= 0;
+      return Object.assign({ label, full: dayFull[i], pick: () => { const cur = this.state.form.days; setF({ days: on ? cur.filter((x) => x !== dow) : cur.concat([dow]) }); } }, chip(on));
+    });
+    const trackChips = [{ id: 'check', label: 'Check-in' }, { id: 'picture', label: 'Picture · soon' }, { id: 'metric', label: 'Metric · soon' }]
+      .map((c) => Object.assign({ label: c.label, disabled: c.id !== 'check', pick: () => { if (c.id === 'check') setF({ tracking: 'check' }); } },
+        c.id === 'check' ? chip(f.tracking === 'check') : { bg: 'transparent', fg: '#5D5A52', bd: '#C9C2B3', pressed: false }));
+    const suggestChips = ['Eat 3 meals a day', 'Stretch before bed', 'Wake up at 5:30'].map((label) => ({ label, pick: () => setF({ title: label }) }));
+    const formValid = f.title.trim().length > 0 && f.days.length > 0 && !limitReached;
+    const startExperiment = () => {
+      const cf = this.state.form;
+      if (!(cf.title.trim().length > 0 && cf.days.length > 0 && !limitReached)) return;
+      const id = 'x' + Date.now();
+      const ex = { id, title: cf.title.trim(), schedule: { type: 'days', days: cf.days.slice() }, start: today, length: 65, where: cf.where.trim(), why: cf.why.trim(), tracking: cf.tracking, logs: {} };
+      this.haptic('tap');
+      this.setState({ experiments: this.state.experiments.concat([ex]), selectedId: id, screen: this.state.firstRun ? 'setup' : 'home', form: this.blankForm(), flash: null });
+    };
+
+    const setupChips = [['Morning', '08:00', '8:00 am'], ['Midday', '12:30', '12:30 pm'], ['Evening', '20:00', '8:00 pm'], ['No reminder', null, 'Off']].map((p) => {
+      const on = p[1] === null ? !st.reminder.on : st.reminder.on && st.reminder.time === p[1];
+      return Object.assign({ label: p[0], time: p[2], pick: () => { this.haptic('tick'); this.setState({ reminder: p[1] === null ? { on: false, time: this.state.reminder.time } : { on: true, time: p[1] } }); } }, chip(on));
+    });
+
+    const lf = st.logForm;
+    const DCX = 300, DCY = 300, DR = 226;
+    const toMin = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+    const fmt12 = (m) => { const h = Math.floor(m / 60) % 24, mm = m % 60; return ((h % 12) || 12) + ':' + (mm < 10 ? '0' : '') + mm + (h < 12 ? ' am' : ' pm'); };
+    const ptAt = (m, r) => { const tt = Math.min(1, Math.max(0, (m - 240) / 1200)); const th = Math.PI * (1 - tt / 2); return { x: Math.round((DCX + r * Math.cos(th)) * 10) / 10, y: Math.round((DCY - r * Math.sin(th)) * 10) / 10 }; };
+    const rmin = toMin(st.reminder.time); const kp = ptAt(rmin, DR);
+    const dialOn = st.reminder.on;
+    const dial = {
+      kx: kp.x, ky: kp.y, label: dialOn ? fmt12(rmin) : 'Off',
+      toggleLabel: dialOn ? 'Turn off' : 'Turn on',
+      ticks: Array.from({ length: 21 }, (_, k) => { const m = (4 + k) * 60, major = (4 + k) % 4 === 0, len = major ? 12 : 6; const a = ptAt(m, DR - len), b = ptAt(m, DR + len); return { x1: a.x, y1: a.y, x2: b.x, y2: b.y, width: major ? 2 : 1.25, opacity: dialOn ? (major ? 0.9 : 0.5) : 0.3 }; })
+    };
+    const dialSet = (e) => {
+      const el = e.currentTarget; const svg = el.ownerSVGElement || el; const rect = svg.getBoundingClientRect(); const sc = rect.width / 352 || 1;
+      const px = (e.clientX - rect.left) / sc, py = (e.clientY - rect.top) / sc;
+      let a = Math.atan2(DCY - py, px - DCX);
+      if (a < 0) a = px < DCX ? Math.PI : Math.PI / 2;
+      a = Math.min(Math.PI, Math.max(Math.PI / 2, a));
+      const m = Math.min(1440, 240 + Math.round(((Math.PI - a) / (Math.PI / 2)) * 1200 / 15) * 15);
+      const hh = Math.floor(m / 60), mm = m % 60;
+      const nt = (hh < 10 ? '0' : '') + hh + ':' + (mm < 10 ? '0' : '') + mm;
+      if (nt !== this.state.reminder.time) this.haptic(m % 60 === 0 ? 'tap' : 'tick');
+      this.setState({ reminder: { on: true, time: nt } });
+    };
+    const dialDown = (e) => { this._drag = true; try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {} dialSet(e); };
+    const dialMove = (e) => { if (this._drag) dialSet(e); };
+    const dialUp = () => { this._drag = false; };
+
+    const df = st.decideForm;
+    const setD = (patch) => this.setState({ decideForm: Object.assign({}, this.state.decideForm, patch) });
+    const effortChips = ['Never', 'Near the end', 'Around the middle', 'Early on'].map((l) => Object.assign({ label: l, pick: () => setD({ effort: l }) }, chip(df.effort === l)));
+    const surviveChips = ['Yes', 'Probably', 'Doubt it', 'No'].map((l) => Object.assign({ label: l, pick: () => setD({ survive: l }) }, chip(df.survive === l)));
+    const costChips = ['Not much', 'Time', 'Energy', 'Social life'].map((l) => { const on = df.cost.indexOf(l) >= 0; return Object.assign({ label: l, pick: () => { const cur = this.state.decideForm.cost; setD({ cost: on ? cur.filter((x) => x !== l) : (l === 'Not much' ? ['Not much'] : cur.filter((x) => x !== 'Not much').concat([l])) }); } }, chip(on)); });
+    const decideWith = (outcome) => () => {
+      const d = this.state.decideForm;
+      const parts = [];
+      if (d.effort) parts.push('Stopped feeling like effort: ' + d.effort.toLowerCase());
+      if (d.survive) parts.push('Survives without tracking: ' + d.survive.toLowerCase());
+      if (d.cost.length || d.costNote.trim()) parts.push('Cost: ' + d.cost.map((x) => x.toLowerCase()).concat(d.costNote.trim() ? [d.costNote.trim()] : []).join(', '));
+      if (d.change.trim()) parts.push('Changed: ' + d.change.trim());
+      const exs = this.state.experiments.map((e) => e.id === sel.ex.id ? Object.assign({}, e, { decision: { outcome, answers: d, summary: parts.join(' · '), date: today } }) : e);
+      this.haptic('tap');
+      this.setState({ experiments: exs, screen: 'home', decideForm: this.blankDecide() });
+    };
+
+    const setDone = (v) => () => { this.haptic(v ? 'yes' : 'no'); this.setState({ logForm: Object.assign({}, this.state.logForm, { done: v }) }); };
+    const submitLog = () => { const cur = this.state.logForm; if (cur.done === null) return; writeLog(sel.ex.id, cur.done, cur.note, this.state.logReturn || 'home'); };
+    const clearLog = () => {
+      const exs = this.state.experiments.map((e) => {
+        if (e.id !== sel.ex.id) return e;
+        const logs = Object.assign({}, e.logs); delete logs[todayKey];
+        return Object.assign({}, e, { logs });
+      });
+      this.setState({ experiments: exs, flash: null, screen: this.state.logReturn || 'home' });
+    };
+    const yes = lf.done === true, no = lf.done === false;
+    const base = sel.logBase || [];
+    const logStrip = base.map((b) => ({ h: 40, bg: b.done ? '#2F7A4B' : '#E0875A', bd: b.done ? '#2F7A4B' : '#E0875A', bs: 'solid', label: b.label, labelColor: '#5D5A52', labelWeight: 400 }))
+      .concat([{ h: 56, bg: yes ? '#2F7A4B' : no ? '#E0875A' : 'transparent', bd: yes ? '#2F7A4B' : no ? '#E0875A' : '#2F7A4B', bs: 'solid', label: 'today', labelColor: '#2E5A2B', labelWeight: 600 }]);
+    while (logStrip.length < N) logStrip.push({ h: 40, bg: 'transparent', bd: '#B9B3A6', bs: 'dashed', label: '', labelColor: '#5D5A52', labelWeight: 400 });
+    logStrip.forEach((sg, k) => { sg.delay = (120 + 40 * k) + 'ms'; });
+    const doneBase = base.filter((b) => b.done).length;
+    const pctWith = (v) => Math.round(100 * (doneBase + (v ? 1 : 0)) / (base.length + 1));
+    const isNew = base.length + 1 < N;
+    const previewLine = isNew
+      ? (lf.done === null ? base.length + '/' + N + ' tracked so far' : (base.length + 1) + '/' + N + ' tracked')
+      : (lf.done === null ? 'Yes → ' + pctWith(true) + '% · Not today → ' + pctWith(false) + '%' : (sel.loggedToday ? '' : sel.pct + '% → ') + pctWith(yes) + '%');
+    const previewColor = no ? '#96371C' : '#2E5A2B';
+    const phasePrompts = { 'Initiation phase': 'What made today easier or harder?', 'Momentum phase': 'Did it take less effort than last week?', 'Integration phase': 'Did you have to think about it today?', 'Decision': 'Anything worth remembering?' };
+    const notePrompt = no ? 'What got in the way?' : (phasePrompts[sel.phase] || 'How it went, what got in the way');
+
+    return {
+      isHome: st.screen === 'home', isCreate: st.screen === 'create', isLog: st.screen === 'log', isAnalysis: st.screen === 'analysis',
+      isDecide: st.screen === 'decide', isCelebrate: st.screen === 'celebrate', isWelcome: st.screen === 'welcome', isSetup: st.screen === 'setup',
+      windowSize: N, todayLong: this.fmtLong(today), goHome, goCreate, sel,
+      goFirst: () => this.setState({ screen: 'create', firstRun: true }),
+      setupChips, finishSetup: () => { this.haptic('tap'); this.setState({ screen: 'home', firstRun: false }); },
+      ready, hasReady: ready.length > 0, decided: decidedList, hasDecided: decidedList.length > 0,
+      todayRows, hasToday: todayRows.length > 0, todayCount: todayList.length ? loggedCount + '/' + todayList.length + ' logged' : '',
+      todayNote, hasTodayNote: todayNote.length > 0, tiers,
+      reminder: st.reminder, dial, dialOpen: st.dialPhase === 'open', dialShown: st.dialPhase !== 'closed', bellSlash: st.reminder.on ? '' : 'M3 3l18 18',
+      dialAnim: st.dialPhase === 'closing' ? 'dialShrink 300ms cubic-bezier(0.4, 0, 0.8, 0.4) both' : 'dialGrow 380ms cubic-bezier(0.2, 0.8, 0.2, 1) both',
+      dialFadeAnim: st.dialPhase === 'closing' ? 'dialFadeOut 160ms ease-in both' : 'dialFade 220ms ease-out 220ms both',
+      toggleDial: () => {
+        if (this.state.dialPhase === 'open') { this.setState({ dialPhase: 'closing' }); clearTimeout(this._dialT); this._dialT = setTimeout(() => { if (this.state.dialPhase === 'closing') this.setState({ dialPhase: 'closed' }); }, 320); }
+        else if (this.state.dialPhase === 'closed') { this.haptic('open'); this.setState({ dialPhase: 'open' }); }
+      },
+      bellLabel: st.reminder.on ? 'Daily reminder, ' + dial.label : 'Daily reminder, off',
+      dialDown, dialMove, dialUp,
+      toggleReminder: () => this.setState({ reminder: Object.assign({}, this.state.reminder, { on: !this.state.reminder.on }) }),
+      form: f, typeChips, dayChips, trackChips, suggestChips, showSuggest: st.firstRun && f.title.trim().length === 0,
+      createTitleA: st.firstRun ? 'Your first' : 'New', createTitleB: st.firstRun ? 'experiment' : 'Experiment',
+      createBack: () => this.setState({ screen: this.state.firstRun ? 'welcome' : 'home' }),
+      setTitle: (e) => setF({ title: e.target.value }),
+      setWhere: (e) => setF({ where: e.target.value }),
+      setWhy: (e) => setF({ why: e.target.value }),
+      limitLine: limitReached ? '3/3 started this week. Next one can start ' + this.fmt(this.addDays(ws, 7)) + '.' : startedThisWeek + '/3 new experiments started this week',
+      limitColor: limitReached ? '#96371C' : '#5D5A52',
+      startExperiment, startDisabled: !formValid, startBg: formValid ? '#2F7A4B' : '#B9B3A6', startFg: formValid ? '#FFFFFF' : '#4A4740',
+      logForm: lf, setYes: setDone(true), setNo: setDone(false), logStrip, previewLine, previewColor, notePrompt,
+      showWhy: no && sel.hasWhy, canClear: sel.loggedToday && !sel.complete, clearLog,
+      logBack: () => this.setState({ screen: this.state.logReturn || 'home' }),
+      submitLabel: yes ? 'Log it' : no ? 'Log the miss' : 'Choose one to log',
+      yesPressed: yes, noPressed: no,
+      yesBg: yes ? '#2F7A4B' : '#EDE9E0', yesFg: yes ? '#FFFFFF' : '#2B2A26', yesBd: yes ? '#2F7A4B' : '#EDE9E0',
+      noBg: no ? '#96371C' : '#EDE9E0', noFg: no ? '#FFFFFF' : '#2B2A26', noBd: no ? '#96371C' : '#EDE9E0',
+      setNote: (e) => this.setState({ logForm: Object.assign({}, this.state.logForm, { note: e.target.value }) }),
+      submitLog, submitDisabled: lf.done === null, submitBg: lf.done === null ? '#B9B3A6' : '#2F7A4B', submitFg: lf.done === null ? '#4A4740' : '#FFFFFF',
+      logSelected: openLog(sel.ex.id, 'analysis'),
+      decideForm: df, effortChips, surviveChips, costChips,
+      setCostNote: (e) => setD({ costNote: e.target.value }), setChange: (e) => setD({ change: e.target.value }),
+      keepIt: decideWith('keep'), dropIt: decideWith('drop'), decideSelected: openDecide(sel.ex.id)
+    };
+  }
+}
+</script>
+</body>
+</html>
