@@ -1,0 +1,67 @@
+/* Global styles, copied from the prototype's <style> block. */
+:root {
+  --ground: #DAD4C8;
+  --card: #EDE9E0;
+  --cream: #F3F0E9;
+  --green: #2F7A4B;
+  --green-dark: #245A3A;
+  --green-text: #2E5A2B;
+  --accent-red: #96371C;
+  --miss-orange: #E0875A;
+  --ink: #2B2A26;
+  --ink-2: #5D5A52;
+  --rule: #C9C2B3;
+  --font-sans: Poppins, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --font-serif: Fraunces, Georgia, 'Times New Roman', serif;
+}
+
+html {
+  background: var(--ground);
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--ground);
+  font-family: var(--font-sans);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+a { color: #2E5A2B; }
+a:hover { color: #1E3F1D; }
+button, input, textarea { font-family: inherit; }
+input::placeholder, textarea::placeholder { color: #6B675E; }
+input:focus, textarea:focus, button:focus-visible { outline: 2px solid #2F7A4B; outline-offset: 2px; }
+button { transition: transform 140ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 180ms ease, color 180ms ease, border-color 180ms ease; }
+button:active:not(:disabled) { transform: scale(0.96); }
+
+@keyframes screenIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes riseIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes growX { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes growY { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes pop { 0% { transform: scale(0); opacity: 0; } 65% { transform: scale(1.25); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes bigPop { 0% { transform: scale(0.5); opacity: 0; } 60% { transform: scale(1.08); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes drawCheck { from { stroke-dashoffset: 24; } to { stroke-dashoffset: 0; } }
+@keyframes badgeIn { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+@keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+@keyframes dialGrow { from { clip-path: circle(28px at 300px 300px); } to { clip-path: circle(250px at 300px 300px); } }
+@keyframes dialShrink { from { clip-path: circle(250px at 300px 300px); } to { clip-path: circle(28px at 300px 300px); } }
+@keyframes dialFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dialFadeOut { from { opacity: 1; } to { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* Phone column: the prototype's 390 px frame, centred on wider screens. */
+.app {
+  max-width: 390px;
+  margin: 0 auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  box-sizing: border-box;
+  position: relative;
+  overflow-x: clip;
+  color: var(--ink);
+}
