@@ -4,6 +4,7 @@ import { TIERS, analyze, formatDayLong, type Analysis, type DateKey, type Segmen
 import { format12, toMinutes } from '../lib/dial.ts'
 import { useStore } from '../store.ts'
 import { BellIcon, C, CheckIcon, CrossIcon, PlusIcon, ease, eyebrow, haptic, screenRoot, sectionHeading, serif } from '../ui.tsx'
+import { askForReminders } from '../lib/push.ts'
 import { BellDial, type DialPhase } from './BellDial.tsx'
 
 const EMPTY_LINES: Record<string, string> = {
@@ -52,6 +53,8 @@ export function Home({ today, flash, dialStartsOpen, onOpen, onQuickYes, onNo, o
   useEffect(() => () => window.clearTimeout(dialTimer.current), [])
   const toggleDial = () => {
     if (dial === 'open') {
+      // Inside the tap, so iOS will show the permission prompt (once).
+      if (reminder.on) askForReminders()
       setDial('closing')
       window.clearTimeout(dialTimer.current)
       dialTimer.current = window.setTimeout(() => setDial((p) => (p === 'closing' ? 'closed' : p)), 320)

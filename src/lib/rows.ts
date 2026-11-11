@@ -39,6 +39,9 @@ export interface ProfileRow {
   reminder_on: boolean
   /** Postgres `time`: 'HH:MM:SS' when read back, 'HH:MM' is accepted on write. */
   reminder_time: string
+  push_subscription: PushSubscriptionJSON | null
+  /** The user's local day the last reminder went out; the server never sends twice in one day. */
+  last_reminded_on: DateKey | null
 }
 
 /** What a load returns: experiments with their logs and decision embedded. */

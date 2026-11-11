@@ -28,6 +28,7 @@ The source of truth for every screen, style and number is `design/prototype.dc.h
 
 - `src/lib/consistency.ts` holds all the maths: occasions, status, analyze, tiers, scheduleLabel, nextDue. It must not import React or Supabase, and must not read the clock: every function takes `today` as an argument. Every number on screen comes from here.
 - `src/store.ts` is the only module that reads or writes data. Screens call the store, never Supabase directly.
+- `src/lib/reminder.ts` holds the reminder rules. The `remind` Edge Function uses copies of it and `consistency.ts` in `supabase/functions/_shared/`: run `npm run shared` after changing either (a test fails if they drift).
 - Keep the last-loaded data in IndexedDB so the app opens offline. Queue offline writes and send them on the next open.
 
 ## Look
@@ -42,6 +43,7 @@ The source of truth for every screen, style and number is `design/prototype.dc.h
 Keep these; don't "fix" them back to the prototype.
 
 - **Create screen:** the voice (mic) button is in the bottom bar, a 56 px round button to the right of "Start experiment" (like the bell on Home), so it sits under the thumb. The prototype's "Say it and the form fills itself in." card at the top is removed.
+- **Voice (step 6), the user's choice:** tap the mic to start, tap again to stop (not hold-to-talk); it stops by itself at 60 s. While recording, the mic button turns accent red `#96371C`, its icon becomes a stop square, it pulses gently (the `breathe` keyframe; no pulse under reduced motion, still red), and a "Listening… 0:12" timer shows beside it. Same behaviour on Create, Log and Decide.
 - **Sign-in screen:** not in the prototype. Email, then the code from the email, styled like Welcome. It remembers the email and step, so coming back from Mail lands on the code box.
 - **Start links:** `?screen=home|welcome|setup|create|log|analysis|celebrate|decide` (plus `&firstRun=1`, `&newUser=1`, `&dial=1`) open a canvas frame on the seed data, in memory only. They never reach Supabase or the offline copy.
 

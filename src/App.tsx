@@ -85,6 +85,17 @@ export default function App() {
     window.scrollTo(0, 0)
   }, [nav.screen])
 
+  // Tapping the reminder while the app is open brings it to Home.
+  useEffect(() => {
+    const sw = navigator.serviceWorker
+    if (!sw) return
+    const onMessage = (e: MessageEvent) => {
+      if ((e.data as { type?: string } | null)?.type === 'open-home') setNav((n) => ({ ...n, screen: 'home', dialOpen: false }))
+    }
+    sw.addEventListener('message', onMessage)
+    return () => sw.removeEventListener('message', onMessage)
+  }, [])
+
   const selected = experiments.find((e) => e.id === nav.selectedId) ?? experiments[0]
   const sel = selected ? analyze(selected, today) : null
 

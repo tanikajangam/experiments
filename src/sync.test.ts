@@ -168,7 +168,45 @@ describe('sync: writing', () => {
     store.setReminder({ on: false, time: '12:30' })
     await settle()
     await store.sync()
-    expect(fake.sent).toContainEqual({ kind: 'profile', row: { id: 'u1', reminder_on: false, reminder_time: '12:30' } })
+    expect(fake.sent).toContainEqual({ kind: 'profile', row: { id: 'u1', reminder_on: false, reminder_time: '12:30', last_reminded_on: null } })
+  })
+
+  it('dragging the dial sends one write with the final time, not one per tick', async () => {
+    const { fake, backend } = fakeBackend()
+    await store.start(backend, fakeCache())
+    fake.online = false // hold the queue while dragging
+    for (const time of ['20:15', '20:30', '20:45', '21:00']) store.setReminder({ on: true, time })
+    fake.online = true
+    await store.sync()
+    const profiles = fake.sent.filter((op) => op.kind === 'profile')
+    expect(profiles).toEqual([{ kind: 'profile', row: { id: 'u1', reminder_on: true, reminder_time: '21:00', last_reminded_on: null } }])
+  })
+
+  it('a write already on its way is never changed; the next change queues behind it', async () => {
+    const { fake, backend } = fakeBackend()
+    await store.start(backend, fakeCache())
+    let release!: () => void
+    const gate = new Promise<void>((r) => (release = r))
+    const send = backend.send
+    backend.send = async (op) => {
+      await gate
+      return send(op)
+    }
+    store.setReminder({ on: true, time: '07:00' })
+    await settle() // the 07:00 write is now in flight
+    store.setReminder({ on: true, time: '07:15' })
+    release()
+    await settle()
+    await store.sync()
+    expect(fake.sent.map((op) => op.kind === 'profile' && op.row.reminder_time)).toEqual(['07:00', '07:15'])
+  })
+
+  it('setting the reminder to what it already is sends nothing', async () => {
+    const { fake, backend } = fakeBackend()
+    await store.start(backend, fakeCache())
+    store.setReminder({ on: true, time: '20:00' })
+    await settle()
+    expect(fake.sent).toEqual([])
   })
 })
 

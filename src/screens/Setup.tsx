@@ -1,4 +1,5 @@
 // After the first experiment: pick when the daily reminder comes.
+import { askForReminders } from '../lib/push.ts'
 import { store, useStore } from '../store.ts'
 import { chip, eyebrow, haptic, primaryButton, screenRoot, serif, C } from '../ui.tsx'
 
@@ -56,6 +57,8 @@ export function Setup({ title, onFinish }: { title: string; onFinish: () => void
       <button
         onClick={() => {
           haptic('tap')
+          // Inside the tap, so iOS will show the permission prompt.
+          if (store.getState().reminder.on) askForReminders()
           onFinish()
         }}
         style={{ ...primaryButton, padding: '0 20px' }}

@@ -85,6 +85,9 @@ let queue: Op[] = []
 /** Bumped on every local change, so a load that started before a change is thrown away. */
 let version = 0
 let flushing: Promise<void> | null = null
+let flushAgain = false
+/** The op being sent right now; it must not be changed while in flight. */
+let inFlight: Op | null = null
 let syncing: Promise<void> | null = null
 let listening = false
 let retryTimer: ReturnType<typeof setTimeout> | null = null
@@ -115,36 +118,70 @@ function commit(patch: Partial<AppState>, ops: (uid: string) => Op[]) {
   version++
   set(patch)
   if (mode !== 'live' || !userId) return
-  queue = [...queue, ...ops(userId)]
+  for (const op of ops(userId)) queue = enqueue(queue, op)
   persist()
   void flush()
 }
 
-/** Send queued writes in order. Stops at the first one that should be retried later. */
-function flush(): Promise<void> {
-  if (flushing) return flushing
-  flushing = (async () => {
-    const uid = userId
-    if (!backend || !uid || queue.length === 0) return
-    // Never send with a stale token: an anonymous write would be rejected and dropped.
-    const s = await backend.session()
-    if (s.kind !== 'user' || s.userId !== uid) return
-    while (queue.length > 0 && userId === uid) {
-      const op = queue[0]
-      const result = await backend.send(op)
-      if (userId !== uid) return
-      if (result === 'retry') {
-        set({ offline: true })
-        return
-      }
-      if (result === 'drop') console.error('The server rejected a change; it was not saved.', op)
-      queue = queue.filter((o) => o !== op)
-      persist()
+/**
+ * Add an op to the queue. A profile change merges into a queued profile change that isn't being sent
+ * yet, so dragging the reminder dial sends one write, not one per tick. (Profile writes don't depend on
+ * the order of other writes, so merging into an earlier one is safe.)
+ */
+function enqueue(q: Op[], op: Op): Op[] {
+  if (op.kind === 'profile') {
+    let i = q.length - 1
+    while (i >= 0 && (q[i].kind !== 'profile' || q[i] === inFlight)) i--
+    if (i >= 0) {
+      const prev = q[i] as Extract<Op, { kind: 'profile' }>
+      return q.map((o, j) => (j === i ? { kind: 'profile', row: { ...prev.row, ...op.row } } : o))
     }
+  }
+  return [...q, op]
+}
+
+/**
+ * Send queued writes in order. Stops at the first one that should be retried later. A flush asked for
+ * while one is running makes it go round once more, so a write never waits on an attempt that started
+ * before it was queued.
+ */
+function flush(): Promise<void> {
+  if (flushing) {
+    flushAgain = true
+    return flushing
+  }
+  flushing = (async () => {
+    do {
+      flushAgain = false
+      await flushOnce()
+    } while (flushAgain)
   })().finally(() => {
     flushing = null
   })
   return flushing
+}
+
+async function flushOnce() {
+  const uid = userId
+  if (!backend || !uid || queue.length === 0) return
+  // Never send with a stale token: an anonymous write would be rejected and dropped.
+  const s = await backend.session()
+  if (s.kind !== 'user' || s.userId !== uid) return
+  while (queue.length > 0 && userId === uid) {
+    const op = queue[0]
+    inFlight = op
+    const result = await backend.send(op).finally(() => {
+      inFlight = null
+    })
+    if (userId !== uid) return
+    if (result === 'retry') {
+      set({ offline: true })
+      return
+    }
+    if (result === 'drop') console.error('The server rejected a change; it was not saved.', op)
+    queue = queue.filter((o) => o !== op)
+    persist()
+  }
 }
 
 /** Switch to a signed-in account that has no offline copy here: wait for its first load. */
@@ -377,7 +414,21 @@ export const store = {
   },
 
   setReminder(reminder: Reminder) {
-    commit({ reminder }, (uid) => [{ kind: 'profile', row: { id: uid, reminder_on: reminder.on, reminder_time: reminder.time } }])
+    const before = state.reminder
+    if (reminder.on === before.on && reminder.time === before.time) return
+    // A new time (or turning it back on) clears "already reminded today", so the new time still fires today.
+    const rearm = reminder.time !== before.time || (reminder.on && !before.on)
+    commit({ reminder }, (uid) => [
+      {
+        kind: 'profile',
+        row: { id: uid, reminder_on: reminder.on, reminder_time: reminder.time, ...(rearm ? { last_reminded_on: null } : {}) },
+      },
+    ])
+  },
+
+  /** Save this device's push subscription (or null when it's gone), so the server can send the reminder. */
+  setPushSubscription(subscription: PushSubscriptionJSON | null) {
+    commit({}, (uid) => [{ kind: 'profile', row: { id: uid, push_subscription: subscription } }])
   },
 
   setFirstRun(firstRun: boolean) {

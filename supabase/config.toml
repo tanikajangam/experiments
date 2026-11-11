@@ -1,0 +1,6 @@
+# Supabase CLI settings for this project (only what differs from the defaults).
+project_id = "experiments"
+
+[functions.remind]
+# Called by pg_cron, not by a signed-in user: it checks the x-cron-secret header itself.
+verify_jwt = false

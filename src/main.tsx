@@ -4,6 +4,7 @@ import './fonts.css'
 import './index.css'
 import App, { isDemoLink } from './App.tsx'
 import { idbCache } from './lib/idbCache.ts'
+import { saveSubscription } from './lib/push.ts'
 import { supabaseBackend } from './lib/supabaseBackend.ts'
 import { store } from './store.ts'
 
@@ -11,7 +12,8 @@ import { store } from './store.ts'
 if (!isDemoLink()) {
   const url = import.meta.env.VITE_SUPABASE_URL
   const key = import.meta.env.VITE_SUPABASE_ANON_KEY
-  if (url && key) void store.start(supabaseBackend(url, key), idbCache())
+  // Once reminders are allowed, re-save the push subscription on every open (it can change).
+  if (url && key) void store.start(supabaseBackend(url, key), idbCache()).then(saveSubscription)
   else store.unconfigured()
 }
 

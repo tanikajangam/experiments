@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "icons": "node scripts/make-icons.mjs"
+    "icons": "node scripts/make-icons.mjs",
+    "shared": "node scripts/copy-shared.mjs"
   },
   "dependencies": {
     "@fontsource-variable/fraunces": "^5.3.0",

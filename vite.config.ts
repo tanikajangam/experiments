@@ -27,6 +27,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,svg,woff2,webmanifest}'],
+        // Shows the daily reminder and opens Home when it's tapped (step 5).
+        importScripts: ['push-sw.js'],
       },
     }),
   ],
