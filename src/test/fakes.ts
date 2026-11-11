@@ -1,5 +1,6 @@
 // A fake server and cache for testing the store's sync without Supabase or IndexedDB.
 import type { Backend, Cache, Loaded, Op, SendResult, SessionState, Snapshot } from '../lib/backend.ts'
+import type { VoiceForm } from '../lib/voice.ts'
 
 export function fakeCache(initial: Snapshot | null = null) {
   let snap: Snapshot | null = initial ? structuredClone(initial) : null
@@ -32,6 +33,10 @@ export function fakeBackend(opts: { session?: SessionState; loaded?: Loaded } = 
     /** When set, loads wait for this before answering. */
     loadGate: null as Promise<void> | null,
     signedOutCallback: null as null | (() => void),
+    /** What voice answers, per form. */
+    voice: {} as Partial<Record<VoiceForm, Record<string, unknown>>>,
+    /** Voice calls: form and format. */
+    voiceCalls: [] as { form: VoiceForm; format: string; bytes: number }[],
   }
   const backend: Backend = {
     session: async () => (fake.session.kind === 'none' || (fake.online && !fake.sessionUnknown) ? fake.session : { kind: 'unknown' }),
@@ -48,6 +53,13 @@ export function fakeBackend(opts: { session?: SessionState; loaded?: Loaded } = 
       fake.loads++
       if (fake.loadGate) await fake.loadGate
       return fake.online ? structuredClone(fake.loaded) : null
+    },
+    transcribe: async (form, audio, format) => {
+      fake.voiceCalls.push({ form, format, bytes: audio.length })
+      const fields = fake.voice[form]
+      if (!fake.online) return { ok: false, message: 'Voice needs a connection. Try again when you’re online.' }
+      if (!fields) return { ok: false, message: 'Didn’t catch anything. Try again, a little closer.' }
+      return { ok: true, transcript: 'test', fields: fields as never }
     },
     send: async (op) => {
       if (!fake.online) return 'retry'

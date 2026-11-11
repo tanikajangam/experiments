@@ -4,3 +4,7 @@ project_id = "experiments"
 [functions.remind]
 # Called by pg_cron, not by a signed-in user: it checks the x-cron-secret header itself.
 verify_jwt = false
+
+[functions.transcribe]
+# Called from the app with the user's session token; the function checks it itself with auth.getUser.
+verify_jwt = false

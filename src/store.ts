@@ -8,7 +8,7 @@
 // Two modes: 'live' (started by main.tsx with Supabase and IndexedDB) and 'demo' (store.reset, used
 // by tests and the ?screen= start links), which stays in memory and never touches the server or cache.
 import { useSyncExternalStore } from 'react'
-import type { Backend, Cache, Op } from './lib/backend.ts'
+import type { Backend, Cache, Op, VoiceResult } from './lib/backend.ts'
 import {
   analyze,
   lastDay,
@@ -21,6 +21,7 @@ import {
   type Weekday,
 } from './lib/consistency.ts'
 import type { DecideAnswers } from './lib/decision.ts'
+import type { AudioFormat, VoiceForm } from './lib/voice.ts'
 import { DEFAULT_REMINDER, decisionToRow, experimentFromRow, experimentToRow, logToRow, reminderFromProfile } from './lib/rows.ts'
 
 export type { DecideAnswers } from './lib/decision.ts'
@@ -338,6 +339,12 @@ export const store = {
     } catch {
       // Not critical.
     }
+  },
+
+  /** Voice: a recording (base64) to fields for one form. Needs the live app and a connection. */
+  async transcribe<F extends VoiceForm>(form: F, audio: string, format: AudioFormat): Promise<VoiceResult<F>> {
+    if (mode !== 'live' || !backend) return { ok: false, message: 'Voice works in the signed-in app, not on a ?screen= preview link.' }
+    return backend.transcribe(form, audio, format)
   },
 
   async sendCode(email: string) {

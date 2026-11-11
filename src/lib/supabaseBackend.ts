@@ -1,8 +1,28 @@
 // The real Backend: supabase-js with the public URL and publishable key. Row Level Security on every
 // table means this key can only ever reach the signed-in user's own rows.
-import { createClient, isAuthRetryableFetchError, type AuthError } from '@supabase/supabase-js'
+import { FunctionsHttpError, createClient, isAuthRetryableFetchError, type AuthError } from '@supabase/supabase-js'
 import { classify, type Backend, type Loaded } from './backend.ts'
 import type { LoadedExperiment } from './rows.ts'
+import type { FieldsFor, VoiceForm } from './voice.ts'
+
+/** Plain-language messages for what went wrong with voice, including which stage, to help debugging. */
+async function voiceMessage(error: unknown): Promise<string> {
+  if (!(error instanceof FunctionsHttpError)) return 'Voice needs a connection. Try again when you’re online.'
+  const res = error.context as Response
+  let body: { error?: string; stage?: string; status?: number } = {}
+  try {
+    body = await res.json()
+  } catch {
+    // Not JSON.
+  }
+  if (res.status === 401) return 'Sign in again to use voice.'
+  if (res.status === 413) return 'That was too long. Keep it under a minute.'
+  if (body.error === 'empty') return 'Didn’t catch anything. Try again, a little closer.'
+  if (body.error === 'not_configured') return 'Voice isn’t set up yet (no OpenRouter key on the server).'
+  if (body.stage === 'transcribe') return `Couldn’t turn that into text (${body.status ?? res.status}). Try again.`
+  if (body.stage === 'sort') return `Heard you, but couldn’t sort it into the form (${body.status ?? res.status}). Try again.`
+  return `Voice didn’t work (${res.status}). Try again.`
+}
 
 function authMessage(error: AuthError, step: 'send' | 'verify'): string {
   if (isAuthRetryableFetchError(error) || !error.status) return 'Can’t reach the server. Check your connection and try again.'
@@ -62,6 +82,13 @@ export function supabaseBackend(url: string, publishableKey: string): Backend {
       ])
       if (experiments.error || profile.error) return null
       return { experiments: experiments.data as unknown as LoadedExperiment[], profile: profile.data } satisfies Loaded
+    },
+
+    async transcribe<F extends VoiceForm>(form: F, audio: string, format: string) {
+      const { data, error } = await client.functions.invoke('transcribe', { body: { form, audio, format } })
+      if (error) return { ok: false as const, message: await voiceMessage(error) }
+      const d = data as { transcript: string; fields: FieldsFor[F] }
+      return { ok: true as const, transcript: d.transcript, fields: d.fields }
     },
 
     async send(op) {

@@ -3,6 +3,7 @@
 import type { Reminder, StoredExperiment } from '../store.ts'
 import type { DateKey } from './consistency.ts'
 import type { DecisionRow, ExperimentRow, LoadedExperiment, LogRow, ProfileRow } from './rows.ts'
+import type { AudioFormat, FieldsFor, VoiceForm } from './voice.ts'
 
 /** One write, queued until the server has it. Every op is idempotent, so sending one twice is harmless. */
 export type Op =
@@ -28,6 +29,9 @@ export interface Loaded {
 
 export type AuthResult = { ok: true } | { ok: false; message: string }
 
+/** What voice gives back: the form's fields (only allowed values, null where nothing was said). */
+export type VoiceResult<F extends VoiceForm> = { ok: true; transcript: string; fields: FieldsFor[F] } | { ok: false; message: string }
+
 export interface Backend {
   session(): Promise<SessionState>
   /** Called when the server ends the session (for example, the refresh token was revoked). */
@@ -37,6 +41,8 @@ export interface Backend {
   /** Everything for this user, or null if it couldn't be loaded (offline, server error). */
   load(userId: string): Promise<Loaded | null>
   send(op: Op): Promise<SendResult>
+  /** Audio (base64) to fields for one form, through the `transcribe` Edge Function. */
+  transcribe<F extends VoiceForm>(form: F, audio: string, format: AudioFormat): Promise<VoiceResult<F>>
 }
 
 /** The last-loaded data plus writes not yet on the server, kept so the app opens offline. */

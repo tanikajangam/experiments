@@ -1,12 +1,10 @@
 // Day 65: four questions, then keep it or drop it. Tracking stops either way.
 import { useState, type CSSProperties } from 'react'
 import type { Analysis } from '../lib/consistency.ts'
-import type { DecideAnswers } from '../lib/decision.ts'
-import { BackIcon, C, MicIcon, chip, roundIconButton, screenRoot, stickyBar } from '../ui.tsx'
+import { COST, EFFORT, SURVIVE, type DecideAnswers } from '../lib/decision.ts'
+import { BackIcon, C, chip, roundIconButton, screenRoot, stickyBar } from '../ui.tsx'
+import { VoiceButton, useVoice, voiceStatus } from '../voice.tsx'
 
-const EFFORT = ['Never', 'Near the end', 'Around the middle', 'Early on']
-const SURVIVE = ['Yes', 'Probably', 'Doubt it', 'No']
-const COST = ['Not much', 'Time', 'Energy', 'Social life']
 
 const card: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 10, padding: '14px 16px', background: C.card, borderRadius: 16 }
 const question: CSSProperties = { fontSize: 15, fontWeight: 500, lineHeight: 1.3 }
@@ -37,6 +35,19 @@ interface Props {
 export function Decide({ a, initial, onBack, onDecide }: Props) {
   const [d, setD] = useState<DecideAnswers>(initial)
   const patch = (p: Partial<DecideAnswers>) => setD((cur) => ({ ...cur, ...p }))
+  // Voice fills only what was said; each chip can still be changed before Keep or Drop.
+  const voice = useVoice('decide', (f) =>
+    setD((cur) => ({
+      ...cur,
+      effort: f.effort ?? cur.effort,
+      survive: f.survive ?? cur.survive,
+      cost: f.cost ?? cur.cost,
+      costNote: f.cost_note ?? cur.costNote,
+      change: f.change ?? cur.change,
+    })),
+  )
+  const status = voiceStatus(voice.state)
+
   const toggleCost = (l: string) =>
     setD((cur) => {
       const on = cur.cost.includes(l)
@@ -63,13 +74,10 @@ export function Decide({ a, initial, onBack, onDecide }: Props) {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '20px 24px 24px', flex: 1 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: C.card, borderRadius: 16 }}>
-          <button
-            aria-label="Answer all four by voice"
-            style={{ width: 48, height: 48, flexShrink: 0, borderRadius: 999, border: 0, background: C.green, color: C.cream, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            <MicIcon />
-          </button>
-          <span style={{ fontSize: 13, lineHeight: 1.4, color: C.ink }}>Say it in one go. Your answer gets sorted into the four questions below.</span>
+          <VoiceButton state={voice.state} onToggle={voice.toggle} label="Answer all four by voice" size={48} style={{ color: C.cream }} />
+          <span role="status" style={{ fontSize: 13, lineHeight: 1.4, color: status ? status.color : C.ink }}>
+            {status ? status.text : 'Say it in one go. Your answer gets sorted into the four questions below.'}
+          </span>
         </div>
 
         <div style={card}>

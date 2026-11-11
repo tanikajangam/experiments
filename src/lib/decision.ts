@@ -1,4 +1,10 @@
-// The day-65 questions' answers, and the one-line summary shown under "Decided".
+// The day-65 questions, their answers, and the one-line summary shown under "Decided".
+// Pure and shared with the Edge Functions (see scripts/copy-shared.mjs).
+
+/** The chip labels. The voice schema and the server's clean-up use these same lists. */
+export const EFFORT = ['Never', 'Near the end', 'Around the middle', 'Early on'] as const
+export const SURVIVE = ['Yes', 'Probably', 'Doubt it', 'No'] as const
+export const COST = ['Not much', 'Time', 'Energy', 'Social life'] as const
 
 export interface DecideAnswers {
   effort: string | null

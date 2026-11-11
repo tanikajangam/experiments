@@ -45,6 +45,8 @@ button:active:not(:disabled) { transform: scale(0.96); }
 @keyframes drawCheck { from { stroke-dashoffset: 24; } to { stroke-dashoffset: 0; } }
 @keyframes badgeIn { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
 @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+/* The mic while recording: a soft red ring spreading out (not in the prototype; see CLAUDE.md). */
+@keyframes micPulse { 0% { box-shadow: 0 0 0 0 rgba(150, 55, 28, 0.45); } 70% { box-shadow: 0 0 0 12px rgba(150, 55, 28, 0); } 100% { box-shadow: 0 0 0 0 rgba(150, 55, 28, 0); } }
 @keyframes dialGrow { from { clip-path: circle(28px at 300px 300px); } to { clip-path: circle(250px at 300px 300px); } }
 @keyframes dialShrink { from { clip-path: circle(250px at 300px 300px); } to { clip-path: circle(28px at 300px 300px); } }
 @keyframes dialFade { from { opacity: 0; } to { opacity: 1; } }

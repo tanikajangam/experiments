@@ -136,8 +136,12 @@ Return only JSON with these keys. Use null when they did not address a question.
   cost:    array from ["Not much", "Time", "Energy", "Social life"]
   cost_note: string or null
   change:  one sentence in their own words, or null
+The trial lasted 65 days, about 9 weeks. For effort: "Early on" is weeks 1 to 2, "Around the middle" is weeks 3 to 6, "Near the end" is weeks 7 to 9, "Never" means it always felt like effort.
+For cost, pick only what they said it cost. Lost sleep or tiredness is "Energy"; hours spent is "Time".
 Transcript: """{transcript}"""
 ```
+
+The two lines before the transcript were added on Nov 11, 2026, after testing: without them "it stopped being hard around week three" came back as "Early on" (the model didn't know the trial is about 9 weeks), and lost sleep came back as both Time and Energy.
 
 The same function serves the New Experiment screen with a different key list (title, schedule\_days, where, why, tracking, photo\_target). The app shows the filled chips and lets the person fix any of them before saving, so a wrong guess costs one tap.
 

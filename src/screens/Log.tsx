@@ -1,7 +1,8 @@
 // Log today: yes or not today, with an optional note.
 import { useState, type ReactNode } from 'react'
 import { WINDOW, formatDay, logPreview, type Analysis, type DateKey } from '../lib/consistency.ts'
-import { BackIcon, C, CheckIcon, CrossIcon, MicIcon, ease, eyebrow, haptic, primaryButton, roundIconButton, screenRoot, serif, stickyBar } from '../ui.tsx'
+import { BackIcon, C, CheckIcon, CrossIcon, ease, eyebrow, haptic, primaryButton, roundIconButton, screenRoot, serif, stickyBar } from '../ui.tsx'
+import { VoiceButton, useVoice, voiceStatus } from '../voice.tsx'
 
 const PHASE_PROMPTS: Record<string, string> = {
   'Initiation phase': 'What made today easier or harder?',
@@ -26,6 +27,13 @@ export function Log({ a, today, initialDone, initialNote, onBack, onSubmit, onCl
   const [note, setNote] = useState(initialNote)
   const yes = done === true
   const no = done === false
+
+  // Voice sets yes or not today if that was said, and adds the note; nothing is saved until Log it.
+  const voice = useVoice('log', (f) => {
+    if (f.done !== null) setDone(f.done)
+    if (f.note) setNote((cur) => (cur.trim() ? `${cur.trim()} ${f.note}` : f.note!))
+  })
+  const status = voiceStatus(voice.state)
 
   const pick = (v: boolean) => () => {
     haptic(v ? 'yes' : 'no')
@@ -162,13 +170,20 @@ export function Log({ a, today, initialDone, initialNote, onBack, onSubmit, onCl
                 display: 'block',
               }}
             />
-            <button
-              aria-label="Record a voice note"
-              style={{ position: 'absolute', right: 8, bottom: 8, width: 44, height: 44, borderRadius: 999, border: 0, background: C.green, color: '#FFFFFF', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-            >
-              <MicIcon size={20} />
-            </button>
+            <VoiceButton
+              state={voice.state}
+              onToggle={voice.toggle}
+              label="Record a voice note"
+              size={44}
+              iconSize={20}
+              style={{ position: 'absolute', right: 8, bottom: 8 }}
+            />
           </div>
+          {status && (
+            <span role="status" style={{ fontSize: 13, lineHeight: 1.4, color: status.color }}>
+              {status.text}
+            </span>
+          )}
         </div>
       </div>
 

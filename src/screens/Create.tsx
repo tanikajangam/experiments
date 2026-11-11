@@ -2,7 +2,8 @@
 import { useState, type CSSProperties } from 'react'
 import { weeklyStarts, type DateKey, type Weekday } from '../lib/consistency.ts'
 import { store, useStore } from '../store.ts'
-import { BackIcon, C, MicIcon, chip, haptic, primaryButton, roundIconButton, screenRoot, stickyBar } from '../ui.tsx'
+import { BackIcon, C, chip, haptic, primaryButton, roundIconButton, screenRoot, stickyBar } from '../ui.tsx'
+import { VoiceButton, useVoice, voiceStatus } from '../voice.tsx'
 
 const TYPES: [string, Weekday[]][] = [
   ['Every day', [0, 1, 2, 3, 4, 5, 6]],
@@ -50,6 +51,15 @@ export function Create({ today, onBack, onCreated }: { today: DateKey; onBack: (
   const [days, setDays] = useState<Weekday[]>([0, 1, 2, 3, 4, 5, 6])
   const [where, setWhere] = useState('')
   const [why, setWhy] = useState('')
+
+  // Voice fills only what was said; everything stays editable before Start experiment.
+  const voice = useVoice('create', (f) => {
+    if (f.title) setTitle(f.title)
+    if (f.schedule_days) setDays(f.schedule_days)
+    if (f.where) setWhere(f.where)
+    if (f.why) setWhy(f.why)
+  })
+  const status = voiceStatus(voice.state)
 
   const limit = weeklyStarts(experiments, today)
   const valid = title.trim().length > 0 && days.length > 0 && !limit.limitReached
@@ -164,7 +174,9 @@ export function Create({ today, onBack, onCreated }: { today: DateKey; onBack: (
       </div>
 
       <div style={{ ...stickyBar, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 12, color: limit.limitReached ? C.red : C.ink2, textAlign: 'center' }}>{limit.line}</span>
+        <span role="status" style={{ fontSize: 12, color: status ? status.color : limit.limitReached ? C.red : C.ink2, textAlign: 'center' }}>
+          {status ? status.text : limit.line}
+        </span>
         {/* Differs from the prototype on purpose: the mic sits in the bottom bar, under the thumb (see CLAUDE.md). */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%' }}>
           <button
@@ -174,24 +186,7 @@ export function Create({ today, onBack, onCreated }: { today: DateKey; onBack: (
           >
             Start experiment
           </button>
-          <button
-            aria-label="Describe your experiment by voice"
-            style={{
-              width: 56,
-              height: 56,
-              flexShrink: 0,
-              borderRadius: 999,
-              border: 0,
-              background: C.green,
-              color: '#FFFFFF',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <MicIcon />
-          </button>
+          <VoiceButton state={voice.state} onToggle={voice.toggle} label="Describe your experiment by voice" size={56} />
         </div>
       </div>
     </div>

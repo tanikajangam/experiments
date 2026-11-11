@@ -65,7 +65,7 @@ describe('reminder: what it says', () => {
 
 describe('reminder: the server uses the same rules', () => {
   it('supabase/functions/_shared matches src/lib (run `npm run shared` after changing them)', () => {
-    for (const f of ['consistency.ts', 'reminder.ts']) {
+    for (const f of ['consistency.ts', 'reminder.ts', 'decision.ts', 'voice.ts']) {
       const app = readFileSync(join(process.cwd(), 'src/lib', f), 'utf8')
       const server = readFileSync(join(process.cwd(), 'supabase/functions/_shared', f), 'utf8')
       expect(server, f).toBe(app)
