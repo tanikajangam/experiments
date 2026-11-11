@@ -75,16 +75,6 @@ export function Create({ today, onBack, onCreated }: { today: DateKey; onBack: (
           </h1>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: C.card, borderRadius: 16 }}>
-          <button
-            aria-label="Describe your experiment by voice"
-            style={{ width: 48, height: 48, flexShrink: 0, borderRadius: 999, border: 0, background: C.green, color: '#FFFFFF', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            <MicIcon />
-          </button>
-          <span style={{ fontSize: 13, lineHeight: 1.4, color: C.ink }}>Say it and the form fills itself in.</span>
-        </div>
-
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <label htmlFor="exp-title" style={label}>
             Experiment title
@@ -175,13 +165,34 @@ export function Create({ today, onBack, onCreated }: { today: DateKey; onBack: (
 
       <div style={{ ...stickyBar, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
         <span style={{ fontSize: 12, color: limit.limitReached ? C.red : C.ink2, textAlign: 'center' }}>{limit.line}</span>
-        <button
-          onClick={start}
-          disabled={!valid}
-          style={{ ...primaryButton, background: valid ? C.green : C.disabledBg, color: valid ? '#FFFFFF' : C.disabledFg }}
-        >
-          Start experiment
-        </button>
+        {/* Differs from the prototype on purpose: the mic sits in the bottom bar, under the thumb (see CLAUDE.md). */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%' }}>
+          <button
+            onClick={start}
+            disabled={!valid}
+            style={{ ...primaryButton, width: 'auto', flex: 1, background: valid ? C.green : C.disabledBg, color: valid ? '#FFFFFF' : C.disabledFg }}
+          >
+            Start experiment
+          </button>
+          <button
+            aria-label="Describe your experiment by voice"
+            style={{
+              width: 56,
+              height: 56,
+              flexShrink: 0,
+              borderRadius: 999,
+              border: 0,
+              background: C.green,
+              color: '#FFFFFF',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <MicIcon />
+          </button>
+        </div>
       </div>
     </div>
   )

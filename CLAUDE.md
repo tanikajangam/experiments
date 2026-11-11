@@ -37,6 +37,12 @@ The source of truth for every screen, style and number is `design/prototype.dc.h
 - Tap targets at least 44 px. Respect `prefers-reduced-motion`. Copy the prototype's animations and their timings.
 - Icons are inline stroke SVGs as in the prototype. No emoji in the UI.
 
+## Deliberate differences from the prototype
+
+Keep these; don't "fix" them back to the prototype.
+
+- **Create screen:** the voice (mic) button is in the bottom bar, a 56 px round button to the right of "Start experiment" (like the bell on Home), so it sits under the thumb. The prototype's "Say it and the form fills itself in." card at the top is removed.
+
 ## Working style
 
 - Run `npm test` before saying a step is done. Add a test for every rule you touch.

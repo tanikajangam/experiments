@@ -78,6 +78,15 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Read 10 pages, 0/7 tracked, Day 1/65' })).toBeInTheDocument()
   })
 
+  it('on Create, the mic sits in the bottom bar next to Start experiment, under the thumb', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: /New Experiment/ }))
+    const mic = screen.getByRole('button', { name: 'Describe your experiment by voice' })
+    const start = screen.getByRole('button', { name: 'Start experiment' })
+    expect(mic.parentElement).toBe(start.parentElement)
+    expect(start.compareDocumentPosition(mic) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('the first run goes Welcome → first experiment → reminder → Home', () => {
     window.history.replaceState(null, '', '/?screen=welcome')
     render(<App />)
