@@ -6,10 +6,13 @@ import { currentDay, store, useStore } from './store.ts'
 import { Analysis } from './screens/Analysis.tsx'
 import { Celebrate } from './screens/Celebrate.tsx'
 import { Create } from './screens/Create.tsx'
-import { BLANK_ANSWERS, Decide, summarize } from './screens/Decide.tsx'
+import { BLANK_ANSWERS, summarize } from './lib/decision.ts'
+import { Decide } from './screens/Decide.tsx'
 import { Home } from './screens/Home.tsx'
 import { Log } from './screens/Log.tsx'
+import { Notice } from './screens/Notice.tsx'
 import { Setup } from './screens/Setup.tsx'
+import { SignIn } from './screens/SignIn.tsx'
 import { Welcome } from './screens/Welcome.tsx'
 import { haptic } from './ui.tsx'
 
@@ -27,16 +30,23 @@ interface Nav {
   dialOpen: boolean
 }
 
+/** True when the URL asks for a start-screen link: the app then runs on seed data, in memory only. */
+export function isDemoLink(search: string = window.location.search): boolean {
+  const params = new URLSearchParams(search)
+  return params.has('screen') || params.has('firstRun') || params.has('newUser')
+}
+
 /**
  * Start-screen links, as in the prototype's canvas: ?screen=home|welcome|setup|create|log|analysis|celebrate|decide,
  * plus &firstRun=1, &newUser=1 and &dial=1. Lets each canvas frame be opened directly to compare side by side.
+ * These run in demo mode: seed data in memory, never sent to Supabase or saved on the device.
  */
 function startFromUrl(today: DateKey): Nav {
   const params = new URLSearchParams(window.location.search)
   const asked = params.get('screen') as Screen | null
   const start: Screen = asked && SCREENS.includes(asked) ? asked : 'home'
   const nav: Nav = { screen: start, selectedId: 'meals', logReturn: 'home', logPreset: null, flash: null, dialOpen: params.get('dial') === '1' }
-  if (!asked && !params.has('firstRun') && !params.has('newUser')) return nav
+  if (!isDemoLink()) return nav
 
   const firstRun = params.get('firstRun') === '1' || start === 'welcome' || start === 'setup'
   let experiments = firstRun ? [] : seed(today)
@@ -67,7 +77,7 @@ function useToday(): DateKey {
 
 export default function App() {
   const today = useToday()
-  const { experiments } = useStore()
+  const { experiments, status, firstRun, offline } = useStore()
   const [nav, setNav] = useState<Nav>(() => startFromUrl(today))
   const go = (patch: Partial<Nav>) => setNav((n) => ({ ...n, ...patch }))
 
@@ -97,9 +107,32 @@ export default function App() {
     })
   }
 
+  if (status === 'unconfigured') {
+    return (
+      <div className="app">
+        <Notice text="This build isn’t connected to Supabase. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY, then rebuild." />
+      </div>
+    )
+  }
+  if (status === 'loading') {
+    return (
+      <div className="app">
+        <Notice text={offline ? 'Can’t reach your experiments right now. Trying again…' : 'Loading your experiments…'} />
+      </div>
+    )
+  }
+  if (status === 'signedOut') {
+    return (
+      <div className="app">
+        <SignIn />
+      </div>
+    )
+  }
+
   // Screens that need a selected experiment fall back to Home if there isn't one.
   const needsSel = nav.screen === 'log' || nav.screen === 'analysis' || nav.screen === 'celebrate' || nav.screen === 'decide' || nav.screen === 'setup'
-  const screen = needsSel && !sel ? 'home' : nav.screen
+  // No experiments yet (and not partway through the first-run flow): show Welcome.
+  const screen = experiments.length === 0 && !firstRun ? 'welcome' : needsSel && !sel ? 'home' : nav.screen
 
   switch (screen) {
     case 'welcome':

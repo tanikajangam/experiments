@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App.tsx'
 import { seed } from './lib/seed.ts'
 import { store } from './store.ts'
+import { fakeBackend, fakeCache } from './test/fakes.ts'
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
@@ -10,6 +11,7 @@ beforeEach(() => {
   store.reset({ experiments: seed('2026-11-10'), firstRun: false, reminder: { on: true, time: '20:00' } })
   window.history.replaceState(null, '', '/')
   window.scrollTo = () => {}
+  localStorage.clear()
 })
 afterEach(() => vi.useRealTimers())
 
@@ -108,5 +110,58 @@ describe('App', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Turn off' }))
     })
     expect(screen.getByText('Off')).toBeInTheDocument()
+  })
+})
+
+describe('App: signing in and loading', () => {
+  it('while the first load runs, shows a loading line, not Welcome', () => {
+    store.reset({ status: 'loading', experiments: [] })
+    render(<App />)
+    expect(screen.getByRole('status')).toHaveTextContent('Loading your experiments…')
+    expect(screen.queryByRole('button', { name: 'Start my first experiment' })).toBeNull()
+  })
+
+  it('when the first load fails, says so and keeps trying', () => {
+    store.reset({ status: 'loading', experiments: [], offline: true })
+    render(<App />)
+    expect(screen.getByRole('status')).toHaveTextContent('Can’t reach your experiments right now. Trying again…')
+  })
+
+  it('signed in with no experiments shows Welcome', () => {
+    store.reset({ experiments: [], firstRun: false })
+    render(<App />)
+    expect(screen.getByRole('button', { name: 'Start my first experiment' })).toBeInTheDocument()
+  })
+
+  it('signed out: email, then the code, then the app', async () => {
+    vi.useRealTimers()
+    const { backend } = fakeBackend({ session: { kind: 'none' } })
+    await act(() => store.start(backend, fakeCache()))
+    render(<App />)
+    expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Send code' })).toBeDisabled()
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'me@example.com' } })
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Send code' })))
+    expect(screen.getByRole('heading', { name: 'Check your email' })).toBeInTheDocument()
+    expect(screen.getByText('me@example.com')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Code'), { target: { value: '000000' } })
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Sign in' })))
+    expect(screen.getByRole('alert')).toHaveTextContent('That code didn’t work.')
+
+    fireEvent.change(screen.getByLabelText('Code'), { target: { value: '123456' } })
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Sign in' })))
+    await act(() => store.sync())
+    expect(await screen.findByRole('button', { name: 'Start my first experiment' })).toBeInTheDocument()
+  })
+
+  it('coming back from Mail lands on the code box, not a second send', async () => {
+    vi.useRealTimers()
+    localStorage.setItem('experiments.signin', JSON.stringify({ email: 'me@example.com', step: 'code' }))
+    const { backend } = fakeBackend({ session: { kind: 'none' } })
+    await act(() => store.start(backend, fakeCache()))
+    render(<App />)
+    expect(screen.getByRole('heading', { name: 'Check your email' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Code')).toBeInTheDocument()
   })
 })

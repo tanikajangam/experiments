@@ -42,6 +42,8 @@ The source of truth for every screen, style and number is `design/prototype.dc.h
 Keep these; don't "fix" them back to the prototype.
 
 - **Create screen:** the voice (mic) button is in the bottom bar, a 56 px round button to the right of "Start experiment" (like the bell on Home), so it sits under the thumb. The prototype's "Say it and the form fills itself in." card at the top is removed.
+- **Sign-in screen:** not in the prototype. Email, then the code from the email, styled like Welcome. It remembers the email and step, so coming back from Mail lands on the code box.
+- **Start links:** `?screen=home|welcome|setup|create|log|analysis|celebrate|decide` (plus `&firstRun=1`, `&newUser=1`, `&dial=1`) open a canvas frame on the seed data, in memory only. They never reach Supabase or the offline copy.
 
 ## Working style
 

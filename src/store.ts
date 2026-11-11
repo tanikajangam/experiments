@@ -1,6 +1,14 @@
 // The only module that reads or writes data. Screens call these functions, never storage directly.
-// Step 3: in memory, seeded with the prototype's seed data. Step 4 swaps this for Supabase + IndexedDB.
+//
+// Every write changes the in-memory state at once (so the UI never waits), is saved to the on-device
+// cache with a queue of pending server writes, and is sent to Supabase in order. If the phone is
+// offline, the queue waits and is sent on the next open, when the connection comes back, or when the
+// app returns to the foreground. A server load never replaces local data while writes are pending.
+//
+// Two modes: 'live' (started by main.tsx with Supabase and IndexedDB) and 'demo' (store.reset, used
+// by tests and the ?screen= start links), which stays in memory and never touches the server or cache.
 import { useSyncExternalStore } from 'react'
+import type { Backend, Cache, Op } from './lib/backend.ts'
 import {
   analyze,
   lastDay,
@@ -12,15 +20,10 @@ import {
   type Experiment,
   type Weekday,
 } from './lib/consistency.ts'
-import { seed } from './lib/seed.ts'
+import type { DecideAnswers } from './lib/decision.ts'
+import { DEFAULT_REMINDER, decisionToRow, experimentFromRow, experimentToRow, logToRow, reminderFromProfile } from './lib/rows.ts'
 
-export interface DecideAnswers {
-  effort: string | null
-  survive: string | null
-  cost: string[]
-  costNote: string
-  change: string
-}
+export type { DecideAnswers } from './lib/decision.ts'
 
 export interface StoredDecision extends Decision {
   answers?: DecideAnswers
@@ -36,11 +39,20 @@ export interface Reminder {
   time: string
 }
 
+/**
+ * loading: waiting for the first load (no offline copy yet). signedOut: show sign-in.
+ * ready: show the app. unconfigured: the build has no Supabase settings.
+ */
+export type Status = 'loading' | 'signedOut' | 'ready' | 'unconfigured'
+
 export interface AppState {
+  status: Status
   experiments: StoredExperiment[]
   reminder: Reminder
   /** True until the first experiment and its reminder are set up. */
   firstRun: boolean
+  /** The last attempt to reach the server failed. */
+  offline: boolean
 }
 
 export interface NewExperiment {
@@ -60,24 +72,151 @@ export function currentDay(now: Date = new Date()): DateKey {
   return localDateKey(now, deviceTimeZone())
 }
 
-let state: AppState = {
-  experiments: seed(currentDay()),
-  reminder: { on: true, time: '20:00' },
-  firstRun: false,
-}
+const INITIAL: AppState = { status: 'loading', experiments: [], reminder: DEFAULT_REMINDER, firstRun: false, offline: false }
+
+let state: AppState = INITIAL
 const listeners = new Set<() => void>()
+
+let mode: 'demo' | 'live' = 'demo'
+let backend: Backend | null = null
+let cache: Cache | null = null
+let userId: string | null = null
+let queue: Op[] = []
+/** Bumped on every local change, so a load that started before a change is thrown away. */
+let version = 0
+let flushing: Promise<void> | null = null
+let syncing: Promise<void> | null = null
+let listening = false
+let retryTimer: ReturnType<typeof setTimeout> | null = null
+const RETRY_MS = 8000
+const PENDING_SIGN_IN = 'experiments.signin'
+
+export interface PendingSignIn {
+  email: string
+  step: 'email' | 'code'
+}
 
 function set(patch: Partial<AppState>) {
   state = { ...state, ...patch }
   listeners.forEach((l) => l())
 }
 
-function update(id: string, change: (ex: StoredExperiment) => StoredExperiment) {
-  set({ experiments: state.experiments.map((e) => (e.id === id ? change(e) : e)) })
-}
-
 function find(id: string): StoredExperiment | undefined {
   return state.experiments.find((e) => e.id === id)
+}
+
+function persist() {
+  if (mode !== 'live' || !cache || !userId) return
+  void cache.write({ userId, experiments: state.experiments, reminder: state.reminder, queue })
+}
+
+/** Apply a local change, then queue its server writes (live mode only). */
+function commit(patch: Partial<AppState>, ops: (uid: string) => Op[]) {
+  version++
+  set(patch)
+  if (mode !== 'live' || !userId) return
+  queue = [...queue, ...ops(userId)]
+  persist()
+  void flush()
+}
+
+/** Send queued writes in order. Stops at the first one that should be retried later. */
+function flush(): Promise<void> {
+  if (flushing) return flushing
+  flushing = (async () => {
+    const uid = userId
+    if (!backend || !uid || queue.length === 0) return
+    // Never send with a stale token: an anonymous write would be rejected and dropped.
+    const s = await backend.session()
+    if (s.kind !== 'user' || s.userId !== uid) return
+    while (queue.length > 0 && userId === uid) {
+      const op = queue[0]
+      const result = await backend.send(op)
+      if (userId !== uid) return
+      if (result === 'retry') {
+        set({ offline: true })
+        return
+      }
+      if (result === 'drop') console.error('The server rejected a change; it was not saved.', op)
+      queue = queue.filter((o) => o !== op)
+      persist()
+    }
+  })().finally(() => {
+    flushing = null
+  })
+  return flushing
+}
+
+/** Switch to a signed-in account that has no offline copy here: wait for its first load. */
+function adopt(id: string) {
+  userId = id
+  queue = []
+  version++
+  set({ status: 'loading', experiments: [], reminder: DEFAULT_REMINDER, firstRun: false })
+}
+
+async function signedOut() {
+  userId = null
+  queue = []
+  version++
+  set({ status: 'signedOut', experiments: [], reminder: DEFAULT_REMINDER, firstRun: false, offline: false })
+  await cache?.clear()
+}
+
+/** The load failed. With nothing to show yet, keep trying every few seconds. */
+function loadFailed() {
+  set({ offline: true })
+  if (state.status === 'loading' && !retryTimer) {
+    retryTimer = setTimeout(() => {
+      retryTimer = null
+      if (state.status === 'loading') void sync()
+    }, RETRY_MS)
+  }
+}
+
+/** Send pending writes, then (if none are left) load the server's copy. */
+function sync(): Promise<void> {
+  if (syncing) return syncing
+  syncing = (async () => {
+    if (mode !== 'live' || !backend) return
+    if (!userId) {
+      const s = await backend.session()
+      if (s.kind === 'none') return signedOut()
+      if (s.kind === 'unknown') return loadFailed()
+      adopt(s.userId)
+    }
+    const uid = userId!
+    await flush()
+    if (queue.length > 0) return
+    // Load only with a confirmed session for this user. Without one, supabase-js would ask as an
+    // anonymous visitor, Row Level Security would answer with an empty list (not an error), and
+    // that would wipe the offline copy.
+    const s = await backend.session()
+    if (s.kind === 'none') return signedOut()
+    if (s.kind !== 'user' || s.userId !== uid) return loadFailed()
+    const v = version
+    const loaded = await backend.load(uid)
+    if (!loaded) return loadFailed()
+    // A change made during the load, or a different account, wins over what was loaded.
+    if (v !== version || queue.length > 0 || userId !== uid || mode !== 'live') return
+    set({
+      status: 'ready',
+      offline: false,
+      experiments: loaded.experiments.map(experimentFromRow),
+      reminder: reminderFromProfile(loaded.profile),
+    })
+    persist()
+    // The profile's timezone sets when the server's day ends (for reminders). Keep it on this device's.
+    const timezone = deviceTimeZone()
+    if (!loaded.profile || loaded.profile.timezone !== timezone) {
+      queue = [...queue, { kind: 'profile', row: { id: uid, timezone } }]
+      persist()
+      await flush()
+    }
+  })().finally(() => {
+    syncing = null
+  })
+  return syncing
 }
 
 export const store = {
@@ -88,9 +227,95 @@ export const store = {
     return () => listeners.delete(listener)
   },
 
-  /** Replace the whole state (used by tests and the prototype's start-screen links). */
+  /** Demo mode: replace the state in memory only (tests and the ?screen= start links). */
   reset(next: Partial<AppState>) {
-    set(next)
+    mode = 'demo'
+    userId = null
+    queue = []
+    version++
+    set({ ...INITIAL, status: 'ready', ...next })
+  },
+
+  /** The build has no Supabase settings. */
+  unconfigured() {
+    mode = 'demo'
+    set({ ...INITIAL, status: 'unconfigured' })
+  },
+
+  /**
+   * Live mode. Shows the offline copy straight away if there is one, then checks the session and
+   * syncs. Being offline never signs you out: only "no stored session" or the server ending it does.
+   */
+  async start(b: Backend, c: Cache) {
+    mode = 'live'
+    backend = b
+    cache = c
+    userId = null
+    queue = []
+    version++
+    set(INITIAL)
+    b.onSignedOut(() => void signedOut())
+    if (!listening && typeof window !== 'undefined') {
+      listening = true
+      window.addEventListener('online', () => void sync())
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') void sync()
+      })
+    }
+    const snap = await c.read()
+    if (snap) {
+      userId = snap.userId
+      queue = snap.queue
+      set({ status: 'ready', experiments: snap.experiments, reminder: snap.reminder })
+    }
+    const s = await b.session()
+    if (s.kind === 'none') return signedOut()
+    if (s.kind === 'user' && s.userId !== userId) adopt(s.userId)
+    await sync()
+  },
+
+  /** Try again now: on reconnect, and when the app comes back to the foreground. */
+  sync,
+
+  /**
+   * The email and step of a sign-in in progress. The user leaves for Mail to read the code and iOS
+   * may reload the app meanwhile, so this brings them back to the code box, not to a second send.
+   */
+  pendingSignIn(): PendingSignIn {
+    try {
+      const raw = localStorage.getItem(PENDING_SIGN_IN)
+      if (raw) {
+        const p = JSON.parse(raw) as { email?: unknown; step?: unknown }
+        if (typeof p.email === 'string') return { email: p.email, step: p.step === 'code' ? 'code' : 'email' }
+      }
+    } catch {
+      // Storage unavailable: start fresh.
+    }
+    return { email: '', step: 'email' }
+  },
+
+  setPendingSignIn(p: PendingSignIn | null) {
+    try {
+      if (p) localStorage.setItem(PENDING_SIGN_IN, JSON.stringify(p))
+      else localStorage.removeItem(PENDING_SIGN_IN)
+    } catch {
+      // Not critical.
+    }
+  },
+
+  async sendCode(email: string) {
+    if (!backend) return { ok: false as const, message: 'Not connected.' }
+    return backend.sendCode(email.trim())
+  },
+
+  async verifyCode(email: string, code: string) {
+    if (!backend) return { ok: false as const, message: 'Not connected.' }
+    const result = await backend.verifyCode(email.trim(), code.replace(/\D/g, ''))
+    if (!result.ok) return result
+    store.setPendingSignIn(null)
+    adopt(result.userId)
+    void sync()
+    return { ok: true as const }
   },
 
   /**
@@ -104,7 +329,9 @@ export const store = {
     const before = analyze(ex, today)
     if (!before.dueToday || before.complete) return null
     const after: StoredExperiment = { ...ex, logs: { ...ex.logs, [today]: { done, note } } }
-    update(id, () => after)
+    commit({ experiments: state.experiments.map((e) => (e.id === id ? after : e)) }, () => [
+      { kind: 'log', row: logToRow(id, today, done, note) },
+    ])
     return { flash: logFlash(before, analyze(after, today)), celebrate: done && lastDay(ex) === today }
   },
 
@@ -114,7 +341,9 @@ export const store = {
     if (!ex || !ex.logs[today] || analyze(ex, today).complete) return
     const logs = { ...ex.logs }
     delete logs[today]
-    update(id, (e) => ({ ...e, logs }))
+    commit({ experiments: state.experiments.map((e) => (e.id === id ? { ...e, logs } : e)) }, () => [
+      { kind: 'unlog', experimentId: id, day: today },
+    ])
   },
 
   /** Start a new experiment today. Returns its id, or null if invalid or 3 have started this week. */
@@ -133,7 +362,7 @@ export const store = {
       tracking: form.tracking,
       logs: {},
     }
-    set({ experiments: [...state.experiments, ex] })
+    commit({ experiments: [...state.experiments, ex] }, (uid) => [{ kind: 'experiment', row: experimentToRow(ex, uid) }])
     return id
   },
 
@@ -141,11 +370,14 @@ export const store = {
   decide(id: string, outcome: 'keep' | 'drop', answers: DecideAnswers, summary: string, today: DateKey) {
     const ex = find(id)
     if (!ex || !analyze(ex, today).complete) return
-    update(id, (e) => ({ ...e, decision: { outcome, answers, summary, date: today } }))
+    const decision: StoredDecision = { outcome, answers, summary, date: today }
+    commit({ experiments: state.experiments.map((e) => (e.id === id ? { ...e, decision } : e)) }, () => [
+      { kind: 'decision', row: decisionToRow(id, outcome, answers, today) },
+    ])
   },
 
   setReminder(reminder: Reminder) {
-    set({ reminder })
+    commit({ reminder }, (uid) => [{ kind: 'profile', row: { id: uid, reminder_on: reminder.on, reminder_time: reminder.time } }])
   },
 
   setFirstRun(firstRun: boolean) {

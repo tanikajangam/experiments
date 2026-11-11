@@ -1,0 +1,202 @@
+// The store in live mode, against a fake server and cache.
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Snapshot } from './lib/backend.ts'
+import type { LoadedExperiment } from './lib/rows.ts'
+import { store } from './store.ts'
+import { fakeBackend, fakeCache, settle } from './test/fakes.ts'
+
+const TODAY = '2026-11-10' // a Tuesday
+const form = { title: 'Read 10 pages', days: [0, 1, 2, 3, 4, 5, 6], where: '', why: '', tracking: 'check' as const }
+
+const serverExperiment: LoadedExperiment = {
+  id: '11111111-1111-4111-8111-111111111111',
+  title: 'Wear retainer',
+  where_note: null,
+  why_note: null,
+  schedule_days: [0, 1, 2, 3, 4, 5, 6],
+  tracking: 'check',
+  start_date: '2026-11-01',
+  logs: [{ day: '2026-11-09', done: true, note: null }],
+  decisions: null,
+}
+
+const snapshot = (over: Partial<Snapshot> = {}): Snapshot => ({
+  userId: 'u1',
+  experiments: [{ id: serverExperiment.id, title: 'Wear retainer', scheduleDays: [0, 1, 2, 3, 4, 5, 6], startDate: '2026-11-01', logs: {} }],
+  reminder: { on: true, time: '20:00' },
+  queue: [],
+  ...over,
+})
+
+beforeEach(() => {
+  vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({ timeZone: 'UTC' } as Intl.ResolvedDateTimeFormatOptions)
+  vi.spyOn(console, 'error').mockImplementation(() => {})
+})
+
+describe('sync: opening the app', () => {
+  it('a fresh install waits on a loading state, then shows the server’s experiments', async () => {
+    const { fake, backend } = fakeBackend({ loaded: { experiments: [serverExperiment], profile: { timezone: 'UTC', reminder_on: true, reminder_time: '08:00:00' } } })
+    let open!: () => void
+    fake.loadGate = new Promise((r) => (open = r))
+    const cache = fakeCache()
+    const started = store.start(backend, cache)
+    await settle()
+    expect(store.getState().status).toBe('loading')
+    open()
+    await started
+    expect(store.getState()).toMatchObject({ status: 'ready', reminder: { on: true, time: '08:00' } })
+    expect(store.getState().experiments.map((e) => e.title)).toEqual(['Wear retainer'])
+    expect(cache.snap()?.experiments).toHaveLength(1)
+  })
+
+  it('offline with an offline copy: opens on the copy and stays signed in', async () => {
+    const { fake, backend } = fakeBackend()
+    fake.online = false
+    await store.start(backend, fakeCache(snapshot()))
+    expect(store.getState()).toMatchObject({ status: 'ready', offline: true })
+    expect(store.getState().experiments[0].title).toBe('Wear retainer')
+  })
+
+  it('a session that can’t be confirmed never loads, so an anonymous empty answer can’t wipe the copy', async () => {
+    const { fake, backend } = fakeBackend() // online, and the server would answer with nothing
+    fake.sessionUnknown = true
+    const cache = fakeCache(snapshot())
+    await store.start(backend, cache)
+    expect(fake.loads).toBe(0)
+    expect(store.getState().experiments[0].title).toBe('Wear retainer')
+    expect(cache.snap()?.experiments).toHaveLength(1)
+  })
+
+  it('no stored session: shows sign-in and clears the offline copy', async () => {
+    const { backend } = fakeBackend({ session: { kind: 'none' } })
+    const cache = fakeCache(snapshot())
+    await store.start(backend, cache)
+    expect(store.getState().status).toBe('signedOut')
+    expect(cache.snap()).toBeNull()
+  })
+
+  it('the server ending the session signs out', async () => {
+    const { fake, backend } = fakeBackend()
+    await store.start(backend, fakeCache())
+    fake.signedOutCallback!()
+    await settle()
+    expect(store.getState().status).toBe('signedOut')
+  })
+
+  it('a different account than the offline copy’s starts clean', async () => {
+    const { backend } = fakeBackend({ session: { kind: 'user', userId: 'u2' } })
+    const cache = fakeCache(snapshot({ queue: [{ kind: 'unlog', experimentId: 'x', day: TODAY }] }))
+    await store.start(backend, cache)
+    expect(store.getState().experiments).toEqual([])
+    expect(cache.snap()).toMatchObject({ userId: 'u2' })
+    expect(cache.snap()?.queue.every((op) => op.kind === 'profile')).toBe(true)
+  })
+
+  it('saves the device timezone to the profile on first sign-in', async () => {
+    const { fake, backend } = fakeBackend({ loaded: { experiments: [], profile: null } })
+    await store.start(backend, fakeCache())
+    expect(fake.sent).toEqual([{ kind: 'profile', row: { id: 'u1', timezone: 'UTC' } }])
+  })
+})
+
+describe('sync: writing', () => {
+  it('sends writes in order: the experiment before its log', async () => {
+    const { fake, backend } = fakeBackend()
+    await store.start(backend, fakeCache())
+    const id = store.createExperiment(form, TODAY)!
+    store.writeLog(id, true, '', TODAY)
+    await settle()
+    await store.sync()
+    expect(fake.sent.map((op) => op.kind)).toEqual(['experiment', 'log'])
+    expect(fake.sent[0]).toMatchObject({ row: { id, user_id: 'u1', start_date: TODAY } })
+    expect(fake.sent[1]).toMatchObject({ row: { experiment_id: id, day: TODAY, done: true } })
+  })
+
+  it('offline: the write shows at once, is kept on the device, and is sent when back online', async () => {
+    const { fake, backend } = fakeBackend({ loaded: { experiments: [serverExperiment], profile: { timezone: 'UTC', reminder_on: true, reminder_time: '20:00:00' } } })
+    const cache = fakeCache()
+    await store.start(backend, cache)
+    fake.online = false
+    store.writeLog(serverExperiment.id, false, 'Forgot', TODAY)
+    await settle()
+    expect(store.getState().experiments[0].logs[TODAY]).toEqual({ done: false, note: 'Forgot' })
+    expect(cache.snap()?.queue).toHaveLength(1)
+    expect(cache.snap()?.experiments[0].logs[TODAY]).toEqual({ done: false, note: 'Forgot' })
+
+    // Force-quit and reopen, still offline: the log is still there.
+    await store.start(backend, cache)
+    expect(store.getState().experiments[0].logs[TODAY]).toEqual({ done: false, note: 'Forgot' })
+
+    // Back online: the queue is sent, then the server's copy is loaded.
+    fake.online = true
+    fake.loaded.experiments[0].logs = [...(fake.loaded.experiments[0].logs ?? []), { day: TODAY, done: false, note: 'Forgot' }]
+    await store.sync()
+    expect(fake.sent).toEqual([{ kind: 'log', row: { experiment_id: serverExperiment.id, day: TODAY, done: false, note: 'Forgot' } }])
+    expect(cache.snap()?.queue).toEqual([])
+    expect(store.getState()).toMatchObject({ offline: false })
+  })
+
+  it('a write the server rejects is dropped, so it can’t block the ones behind it', async () => {
+    const { fake, backend } = fakeBackend()
+    const cache = fakeCache()
+    await store.start(backend, cache)
+    fake.resultFor = (op) => (op.kind === 'experiment' ? 'drop' : 'ok')
+    store.createExperiment(form, TODAY)
+    store.setReminder({ on: true, time: '08:00' })
+    await settle()
+    await store.sync()
+    expect(fake.sent.map((op) => op.kind)).toEqual(['profile'])
+    expect(cache.snap()?.queue).toEqual([])
+  })
+
+  it('a load never overwrites a change made while it was running', async () => {
+    const { fake, backend } = fakeBackend({ loaded: { experiments: [serverExperiment], profile: { timezone: 'UTC', reminder_on: true, reminder_time: '20:00:00' } } })
+    await store.start(backend, fakeCache())
+    let open!: () => void
+    fake.loadGate = new Promise((r) => (open = r))
+    const syncing = store.sync()
+    await settle()
+    store.writeLog(serverExperiment.id, true, '', TODAY)
+    open()
+    await syncing
+    expect(store.getState().experiments[0].logs[TODAY]).toEqual({ done: true, note: '' })
+  })
+
+  it('the reminder is saved to the profile', async () => {
+    const { fake, backend } = fakeBackend()
+    await store.start(backend, fakeCache())
+    store.setReminder({ on: false, time: '12:30' })
+    await settle()
+    await store.sync()
+    expect(fake.sent).toContainEqual({ kind: 'profile', row: { id: 'u1', reminder_on: false, reminder_time: '12:30' } })
+  })
+})
+
+describe('sync: signing in', () => {
+  it('a right code signs in and loads; a wrong one says so', async () => {
+    const { fake, backend } = fakeBackend({ session: { kind: 'none' }, loaded: { experiments: [serverExperiment], profile: null } })
+    await store.start(backend, fakeCache())
+    expect(store.getState().status).toBe('signedOut')
+    expect(await store.verifyCode('me@example.com', '000000')).toMatchObject({ ok: false })
+    expect(await store.verifyCode('me@example.com', '123 456')).toEqual({ ok: true })
+    await store.sync()
+    expect(store.getState().status).toBe('ready')
+    expect(store.getState().experiments).toHaveLength(1)
+    expect(fake.loads).toBeGreaterThan(0)
+  })
+})
+
+describe('sync: demo mode', () => {
+  it('the start links’ seed data never reaches the server or the device', async () => {
+    const { fake, backend } = fakeBackend()
+    const cache = fakeCache()
+    await store.start(backend, cache)
+    const sentBefore = fake.sent.length
+    store.reset({ experiments: [] })
+    store.createExperiment(form, TODAY)
+    await settle()
+    await store.sync()
+    expect(fake.sent.length).toBe(sentBefore)
+    expect(cache.snap()?.experiments ?? []).toEqual([])
+  })
+})

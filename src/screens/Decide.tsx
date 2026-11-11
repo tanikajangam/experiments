@@ -1,25 +1,12 @@
 // Day 65: four questions, then keep it or drop it. Tracking stops either way.
 import { useState, type CSSProperties } from 'react'
 import type { Analysis } from '../lib/consistency.ts'
-import type { DecideAnswers } from '../store.ts'
+import type { DecideAnswers } from '../lib/decision.ts'
 import { BackIcon, C, MicIcon, chip, roundIconButton, screenRoot, stickyBar } from '../ui.tsx'
-
-export const BLANK_ANSWERS: DecideAnswers = { effort: null, survive: null, cost: [], costNote: '', change: '' }
 
 const EFFORT = ['Never', 'Near the end', 'Around the middle', 'Early on']
 const SURVIVE = ['Yes', 'Probably', 'Doubt it', 'No']
 const COST = ['Not much', 'Time', 'Energy', 'Social life']
-
-/** The one-line summary saved with the decision. */
-export function summarize(d: DecideAnswers): string {
-  const parts: string[] = []
-  if (d.effort) parts.push(`Stopped feeling like effort: ${d.effort.toLowerCase()}`)
-  if (d.survive) parts.push(`Survives without tracking: ${d.survive.toLowerCase()}`)
-  if (d.cost.length || d.costNote.trim())
-    parts.push(`Cost: ${[...d.cost.map((x) => x.toLowerCase()), ...(d.costNote.trim() ? [d.costNote.trim()] : [])].join(', ')}`)
-  if (d.change.trim()) parts.push(`Changed: ${d.change.trim()}`)
-  return parts.join(' · ')
-}
 
 const card: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 10, padding: '14px 16px', background: C.card, borderRadius: 16 }
 const question: CSSProperties = { fontSize: 15, fontWeight: 500, lineHeight: 1.3 }
